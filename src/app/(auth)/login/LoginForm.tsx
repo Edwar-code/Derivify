@@ -17,9 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import Image from 'next/image';
 
-// This is the new component containing all the previous logic from the page.
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,21 +26,26 @@ export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Simplified login handler for email and password only
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       const result = await signIn('credentials', {
-        redirect: false,
+        redirect: false, // We handle the redirect manually
         email: email,
         password: password,
       });
 
       if (result?.error) {
-        throw new Error(result.error);
+        // Show a more user-friendly error
+        toast({
+          title: "Login Error",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Login Successful",
@@ -54,17 +57,12 @@ export default function LoginForm() {
     } catch (error: any) {
       toast({
         title: "Login Error",
-        description: error.message === 'CredentialsSignin' ? "Invalid email or password." : error.message,
+        description: "An unexpected error occurred.",
         variant: "destructive",
       });
     } finally {
         setIsLoading(false);
     }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    await signIn('google', { callbackUrl });
   };
 
   return (
@@ -86,7 +84,7 @@ export default function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -97,41 +95,23 @@ export default function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
             />
           </div>
-           <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+           <Button type="submit" className="w-full" disabled={isLoading}>
              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Log In
           </Button>
         </CardContent>
       </form>
-       <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                Or continue with
-                </span>
-            </div>
-        </div>
-        <CardFooter className="flex flex-col gap-4">
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
-                {isGoogleLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                   <Image src="/google.svg" width={16} height={16} alt="Google logo" className="mr-2" />
-                )}
-                Google
-            </Button>
+      <CardFooter className="flex flex-col gap-4">
            <p className="text-xs text-center text-muted-foreground">
               Don't have an account?{" "}
               <Link href="/signup" className="underline text-primary">
                 Sign up
               </Link>
             </p>
-        </CardFooter>
+      </CardFooter>
     </Card>
   );
 }

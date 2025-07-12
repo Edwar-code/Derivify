@@ -1,18 +1,14 @@
 import NextAuth from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { MongoDBAdapter } from "@auth/mongodb-adapter"
-import clientPromise from "@/lib/mongodb" // We will create this file next
+import clientPromise from "@/lib/mongodb"
 import { MongoClient } from "mongodb"
 import bcrypt from "bcryptjs"
 
-export default NextAuth({
+const handler = NextAuth({
   adapter: MongoDBAdapter(clientPromise),
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
+    // --- WE HAVE REMOVED GoogleProvider COMPLETELY ---
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
@@ -26,10 +22,10 @@ export default NextAuth({
 
         const client: MongoClient = await clientPromise;
         const usersCollection = client.db().collection("users");
-
         const user = await usersCollection.findOne({ email: credentials.email });
 
-        if (!user) {
+        // Check if user exists and has a password
+        if (!user || !user.password) {
           throw new Error("No user found with this email.");
         }
 
@@ -39,7 +35,7 @@ export default NextAuth({
           throw new Error("Invalid password.");
         }
 
-        // Return a user object that next-auth will use
+        // Return the user object if everything is valid
         return {
           id: user._id.toString(),
           name: user.name,
@@ -49,17 +45,19 @@ export default NextAuth({
     })
   ],
   session: {
+    // Use JSON Web Tokens for session management
     strategy: "jwt",
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
-    // You can add callbacks here to customize session tokens, etc.
+    // This callback adds the user ID from the token to the session object
     async session({ session, token }) {
-      if (token?.sub) {
-        session.user.id = token.sub; // Add user ID to the session object
+      if (token?.sub && session.user) {
+        (session.user as { id: string }).id = token.sub;
       }
       return session;
     },
+    // This callback is called when a JWT is created
     async jwt({ token, user }) {
         if (user) {
             token.sub = user.id
@@ -68,7 +66,10 @@ export default NextAuth({
     }
   },
   pages: {
-    signIn: '/login', // Redirect users to your custom login page
-    // error: '/auth/error', // Optional: a page to handle auth errors
+    signIn: '/login', // Point to your custom login page
+    error: '/login',   // Redirect to login on error, with an error query param
   }
-})
+});
+
+// Required export for the App Router
+export { handler as GET, handler as POST }
