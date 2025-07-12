@@ -17,7 +17,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import { signUpWithEmail } from '@/lib/firebase/auth';
 
 export default function SignupPage() {
   const router = useRouter();
