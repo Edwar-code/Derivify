@@ -1,26 +1,30 @@
-import PublicHeader from "./PublicHeader"; // Import the new client component
-import Link from "next/link";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Providers from "./providers"; // <-- Make sure this import is correct
+import { Toaster } from "@/components/ui/toaster";
 
-export default function PublicLayout({
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Derivify",
+  description: "Your document generation platform",
+};
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-       <PublicHeader /> {/* Use the new component here */}
-       <main className="flex-1">
+    <html lang="en">
+      <body className={inter.className}>
+        {/* The Providers component must wrap your page content */}
+        <Providers>
           {children}
-       </main>
-       <footer className="border-t bg-card">
-        <div className="container mx-auto py-6 text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} Derivify. All rights reserved.</p>
-             <div className="flex justify-center gap-4 mt-2">
-                <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
-                <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
-            </div>
-        </div>
-       </footer>
-    </div>
+          <Toaster />
+        </Providers>
+      </body>
+    </html>
   );
 }
