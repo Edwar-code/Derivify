@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { logout } from "@/lib/firebase/auth";
+
 
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
