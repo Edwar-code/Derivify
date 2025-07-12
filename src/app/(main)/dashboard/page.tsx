@@ -1,4 +1,3 @@
-
 import {
   Card,
   CardContent,
@@ -11,7 +10,14 @@ import { FileText, Building, FileUp, Banknote, Wallet, Gift, Copy } from 'lucide
 import { Button } from "@/components/ui/button";
 import { WithdrawalModal } from "@/components/wallet/withdrawal-modal";
 
+// --- SERVER-SIDE DATA FETCHING ---
+import { getServerSession } from "next-auth/next";
+import { redirect } from "next/navigation";
+import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
+
 const documents = [
+  // ... (your documents array remains the same)
   {
     id: "doc-1",
     name: "KRA Returns Document",
@@ -42,40 +48,46 @@ const documents = [
   },
 ];
 
-export default function DashboardPage() {
-  const walletBalance = 1250.00;
-  const referralCode = "DERIVIFY-A8X3B";
+// The page component is now async
+export default async function DashboardPage() {
+  const session = await getServerSession();
+
+  // If there's no session, the middleware should have redirected, but this is a failsafe.
+  if (!session || !session.user || !(session.user as any).id) {
+    redirect("/login");
+  }
+
+  const userId = (session.user as any).id;
+
+  // Fetch the user data from MongoDB
+  const client = await clientPromise;
+  const db = client.db();
+  const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+
+  if (!user) {
+    redirect("/login"); // User not found in DB
+  }
+
+  // Use real data from the database, with fallbacks for safety
+  const walletBalance = user.walletBalance ?? 0;
+  const referralCode = user.referralCode ?? "N/A";
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-border bg-card shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div className="space-y-1">
-                    <CardTitle className="text-lg">My Wallet</CardTitle>
-                    <CardDescription>
-                        Your available referral earnings.
-                    </CardDescription>
-                </div>
-                <Wallet className="w-8 h-8 text-muted-foreground" />
-            </CardHeader>
+            {/* ... card content ... */}
             <CardContent className="space-y-4">
+                {/* DYNAMIC DATA */}
                 <p className="text-3xl font-bold text-foreground">KES {walletBalance.toFixed(2)}</p>
                 <WithdrawalModal currentBalance={walletBalance} />
             </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div className="space-y-1">
-                    <CardTitle className="text-lg">Refer & Earn</CardTitle>
-                    <CardDescription>
-                        Share your code and earn commissions.
-                    </CardDescription>
-                </div>
-                 <Gift className="w-8 h-8 text-muted-foreground" />
-            </CardHeader>
+            {/* ... card content ... */}
             <CardContent className="space-y-4">
                 <div className="border border-dashed border-border rounded-md p-3 text-center">
+                    {/* DYNAMIC DATA */}
                     <p className="text-2xl font-mono tracking-widest text-foreground">{referralCode}</p>
                 </div>
                 <Button variant="outline" className="w-full">
@@ -87,24 +99,11 @@ export default function DashboardPage() {
       </div>
 
       <Card className="border-border bg-card shadow-md">
-          <CardHeader>
-              <CardTitle className="text-lg">Purchase a Document</CardTitle>
-              <CardDescription>
-                  Select a document to generate. Your proof of address, delivered instantly.
-              </CardDescription>
-          </CardHeader>
+          {/* ... card content ... */}
           <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {documents.map((doc) => (
                   <div key={doc.id} className="flex items-center justify-between space-x-4 p-4 rounded-lg border border-border bg-background">
-                      <div className="flex items-center gap-4">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-md`}>
-                             {doc.icon}
-                          </div>
-                          <div className="flex flex-col">
-                              <p className="font-semibold text-foreground">{doc.name}</p>
-                              <p className="text-xs text-muted-foreground">{doc.description}</p>
-                          </div>
-                      </div>
+                      {/* ... content */}
                       <PaymentModal document={doc} />
                   </div>
               ))}
