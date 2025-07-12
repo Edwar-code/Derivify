@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
+
 export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
