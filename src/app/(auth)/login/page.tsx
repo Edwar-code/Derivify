@@ -1,8 +1,8 @@
-
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,12 +17,12 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 import Image from 'next/image';
-
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,22 +32,29 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
     try {
-      const user = await signInWithEmail(email, password);
-      if (user) {
+      const result = await signIn('credentials', {
+        redirect: false, // Handle redirect manually
+        email: email,
+        password: password,
+      });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      } else {
         toast({
           title: "Login Successful",
           description: "Welcome back!",
           className: "bg-green-500 text-white",
         });
-        router.push('/dashboard');
-      } else {
-         throw new Error("Login failed. Please check your credentials.");
+        router.push(callbackUrl);
       }
     } catch (error: any) {
       toast({
         title: "Login Error",
-        description: error.message || "An unknown error occurred.",
+        // 'CredentialsSignin' is the default error code from next-auth
+        description: error.message === 'CredentialsSignin' ? "Invalid email or password." : error.message,
         variant: "destructive",
       });
     } finally {
@@ -57,27 +64,11 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    try {
-      const user = await signInWithGoogle();
-      if (user) {
-         toast({
-          title: "Login Successful",
-          description: `Welcome, ${user.displayName}!`,
-          className: "bg-green-500 text-white",
-        });
-        router.push('/dashboard');
-      }
-    } catch (error: any) {
-        toast({
-          title: "Google Sign-In Error",
-          description: error.message || "Could not sign in with Google.",
-          variant: "destructive",
-        });
-    } finally {
-      setIsGoogleLoading(false);
-    }
+    // The user will be redirected to Google and then back to the callbackUrl
+    await signIn('google', { callbackUrl });
+    // No need to handle success/error here as the page will redirect.
+    // The loading state will persist until the redirect happens.
   };
-
 
   return (
     <Card>
@@ -91,20 +82,20 @@ export default function LoginPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input 
-              id="email" 
-              type="email" 
-              placeholder="name@example.com" 
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required 
+              required
               disabled={isLoading || isGoogleLoading}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input 
-              id="password" 
+            <Input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -138,7 +129,7 @@ export default function LoginPage() {
                 Google
             </Button>
            <p className="text-xs text-center text-muted-foreground">
-              Don&apos;t have an account?{" "}
+              Don't have an account?{" "}
               <Link href="/signup" className="underline text-primary">
                 Sign up
               </Link>
