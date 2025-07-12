@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation'; // Only useSearchParams is needed now
 import { signIn } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,6 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const { toast } = useToast();
@@ -27,32 +26,36 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Simplified login handler for email and password only
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       const result = await signIn('credentials', {
-        redirect: false, // We handle the redirect manually
+        redirect: false, // This is correct, we handle outcomes manually
         email: email,
         password: password,
       });
 
       if (result?.error) {
-        // Show a more user-friendly error
         toast({
           title: "Login Error",
           description: "Invalid email or password. Please try again.",
           variant: "destructive",
         });
+        // On error, we stop and set loading to false.
+        setIsLoading(false); 
       } else {
+        // --- THIS IS THE FIX ---
+        // On success, show the toast and then force a reliable redirect.
         toast({
           title: "Login Successful",
-          description: "Welcome back!",
+          description: "Welcome back! Redirecting...",
           className: "bg-green-500 text-white",
         });
-        router.push(callbackUrl);
+
+        // Use window.location.href instead of router.push for a more robust redirect after login.
+        window.location.href = callbackUrl;
       }
     } catch (error: any) {
       toast({
@@ -60,9 +63,9 @@ export default function LoginForm() {
         description: "An unexpected error occurred.",
         variant: "destructive",
       });
-    } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
+    // Note: We don't set isLoading(false) in the success 'else' block because the page will navigate away anyway.
   };
 
   return (
