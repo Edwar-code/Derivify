@@ -49,7 +49,7 @@ export default async function DashboardPage() {
   
   const walletBalance = user.walletBalance ?? 0;
   const referralCode = user.referralCode ?? "N/A";
-  // Fetch the Deriv POA status from the user document
+  // Fetch the Deriv POA status from the user document in your database
   const derivPoaStatus = user.derivPoaStatus ?? 'none';
 
   return (
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
         <ReferralCard referralCode={referralCode} />
       </div>
 
-      {/* Add the new Deriv Connection Card here, separate from the grid */}
+      {/* Add the new Deriv Connection Card here. Pass the status from the database. */}
       <DerivConnectionCard initialPoaStatus={derivPoaStatus} />
 
       <Card className="border-border bg-card shadow-md">
