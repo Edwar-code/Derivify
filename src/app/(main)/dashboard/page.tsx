@@ -1,5 +1,3 @@
-// This file is located at your dashboard/page.tsx
-
 import {
   Card,
   CardContent,
@@ -8,95 +6,66 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PaymentModal } from "@/components/payment/payment-modal";
-import { FileText, Building, FileUp, Banknote, Wallet, Gift, Copy } from 'lucide-react';
+import { FileText, Building, FileUp, Banknote, Wallet, Gift, Copy, ShieldCheck } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { WithdrawalModal } from "@/components/wallet/withdrawal-modal";
-
-// --- SERVER-SIDE DATA FETCHING ---
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-
-// Import the authOptions from your NextAuth configuration
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import Link from "next/link";
 
 const documents = [
-  {
-    id: "doc-1",
-    name: "KRA Returns Document",
-    description: "Official KRA document to serve as a proof of address.",
-    price: 150,
-    icon: <FileText className="w-6 h-6 text-primary" />,
-  },
-  {
-    id: "doc-2",
-    name: "Utility Electricity Bill",
-    description: "A recent electricity bill with your name and address.",
-    price: 150,
-    icon: <Building className="w-6 h-6 text-primary" />,
-  },
-  {
-    id: "doc-3",
-    name: "Affidavit for Proof",
-    description: "A sworn affidavit legally confirming your place of residence.",
-    price: 150,
-    icon: <FileUp className="w-6 h-6 text-primary" />,
-  },
-  {
-    id: "doc-4",
-    name: "Bank Statement",
-    description: "Official bank statement reflecting your address.",
-    price: 150,
-    icon: <Banknote className="w-6 h-6 text-primary" />,
-  },
+    { id: "doc-1", name: "KRA Returns Document", description: "Official KRA document to serve as a proof of address.", price: 150, icon: <FileText className="w-6 h-6 text-primary" /> },
+    { id: "doc-2", name: "Utility Electricity Bill", description: "A recent electricity bill with your name and address.", price: 150, icon: <Building className="w-6 h-6 text-primary" /> },
+    { id: "doc-3", name: "Affidavit for Proof", description: "A sworn affidavit legally confirming your place of residence.", price: 150, icon: <FileUp className="w-6 h-6 text-primary" /> },
+    { id: "doc-4", name: "Bank Statement", description: "Official bank statement reflecting your address.", price: 150, icon: <Banknote className="w-6 h-6 text-primary" /> },
 ];
 
 export default async function DashboardPage() {
-  // Pass the authOptions to getServerSession to get the session correctly
   const session = await getServerSession(authOptions);
-
-  // --- DEBUGGING LOG ---
-  console.log("Dashboard Page - Session Object:", JSON.stringify(session, null, 2));
-
-  // --- CHECK 1: Validate the session object itself ---
-  // The type for session.user is now correctly inferred to potentially have an 'id'
+  
   if (!session || !session.user || !session.user.id) {
-    console.log("Dashboard Page: Redirecting to login due to missing session or user ID.");
     redirect("/login");
   }
 
   const userId = session.user.id;
-  console.log("Dashboard Page - User ID from session:", userId);
-
   let user = null;
   try {
     const client = await clientPromise;
     const db = client.db();
-    
-    // --- CHECK 2: Validate the user from the database ---
     user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
-    console.log("Dashboard Page - User found in DB:", JSON.stringify(user, null, 2));
-
   } catch (error) {
     console.error("Dashboard Page: Error querying database.", error);
-    // If new ObjectId(userId) fails, it will be caught here.
     redirect("/login");
   }
 
   if (!user) {
-    console.log("Dashboard Page: Redirecting to login because user was not found in the database with ID:", userId);
     redirect("/login");
   }
-
-  // Use real data from the database, with fallbacks for safety
+  
   const walletBalance = user.walletBalance ?? 0;
   const referralCode = user.referralCode ?? "N/A";
 
-  console.log("Dashboard Page: Successfully loaded for user:", user.email);
-
   return (
     <div className="space-y-8">
+      {/* This card will only render if the user's role from the DB is 'admin' */}
+      {user.role === 'admin' && (
+        <Card className="border-primary bg-primary/10">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck/> Admin Panel</CardTitle>
+                <CardDescription>You have administrative privileges. Access the admin dashboard to manage users and documents.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild>
+                    <Link href="/admin/dashboard">Go to Admin Dashboard</Link>
+                </Button>
+            </CardContent>
+        </Card>
+      )}
+
+      {/* The rest of the user's dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-border bg-card shadow-md">
             <CardHeader>

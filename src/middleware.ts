@@ -1,27 +1,31 @@
-// This file is located at your root, at middleware.ts
-
-import { withAuth } from "next-auth/middleware"
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
 export default withAuth(
-  // `withAuth` augments your `Request` with the user's token.
   function middleware(req) {
-    // You can add role-based checks here in the future if needed.
+    // This logic protects the admin routes
+    if (
+      req.nextUrl.pathname.startsWith("/admin") &&
+      req.nextauth.token?.role !== "admin"
+    ) {
+      // If a user is not an admin, silently redirect them back to their own user dashboard.
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
   },
   {
     callbacks: {
+      // This callback ensures the user is logged in to access any protected page.
       authorized: ({ token }) => !!token,
     },
   }
-)
+);
 
-// This is the corrected configuration
-export const config = { 
-  // This matcher now ONLY protects routes that start with /dashboard.
-  // Your homepage ('/'), login, and signup pages are now automatically public.
+// This config protects all the necessary routes.
+export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/orders/:path*", // Also protect the orders page
-    "/profile/:path*", // Also protect the profile page
-    // Add any other routes here that should be for logged-in users only.
-  ]
-}
+    "/orders/:path*",
+    "/profile/:path*",
+    "/admin/:path*", // This ensures the middleware runs on all admin routes
+  ],
+};
