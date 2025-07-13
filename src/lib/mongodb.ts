@@ -1,29 +1,26 @@
-// This file is located at lib/mongodb.ts
+// This file is located at lib/mongodb.js
 
-import { MongoClient } from 'mongodb'
+import { MongoClient } from 'mongodb';
 
 // Check if the environment variable for the URI is set.
 if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
+  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
 }
 
-const uri = process.env.MONGODB_URI
-const options = {}
+const uri = process.env.MONGODB_URI;
+const options = {};
 
-let client: MongoClient
-let clientPromise: Promise<MongoClient>
+let client;
+let clientPromise;
 
-// Add TypeScript interface for global augmentation
-declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined
-}
 /**
  * A function to connect to the database and log the result.
  * This will run once when the application starts.
  */
-async function connectToDB(): Promise<MongoClient> {
+async function connectToDB() {
   try {
     const mongoClient = new MongoClient(uri, options);
+    console.log("Attempting to connect to MongoDB...");
     await mongoClient.connect();
     
     // This is the success message you will look for in your Vercel logs.
