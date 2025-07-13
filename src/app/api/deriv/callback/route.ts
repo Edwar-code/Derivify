@@ -1,13 +1,10 @@
-// The file path MUST BE: app/api/deriv/callback/route.ts
-
-// --- THIS IS THE CORRECTED IMPORT ---
-import { NextRequest, NextResponse } from 'next/server'; 
-
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import DerivAPIBasic from '@deriv/deriv-api/dist/DerivAPIBasic';
+import { revalidatePath } from 'next/cache'; // <-- IMPORTANT IMPORT
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -22,13 +19,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard?deriv_status=error', req.url));
   }
   
-  const appId = '85288';
+  const appId = '85288'; // Your App ID
   const clientSecret = process.env.DERIV_CLIENT_SECRET;
 
   if (!clientSecret) {
     console.error("Critical: DERIV_CLIENT_SECRET is not set in environment variables.");
-    // Even if Deriv doesn't provide one, it's safer to have this check.
-    // If your app truly doesn't need one, you can remove this block.
     return NextResponse.redirect(new URL('/dashboard?deriv_status=error', req.url));
   }
 
@@ -43,22 +38,15 @@ export async function GET(req: NextRequest) {
 
     const tokenResponse = await fetch('https://oauth.deriv.com/oauth2/token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: bodyParams,
     });
 
-    if (!tokenResponse.ok) {
-        const errorBody = await tokenResponse.json();
-        console.error("Failed to get Deriv token:", errorBody);
-        throw new Error('Failed to get token');
-    }
+    if (!tokenResponse.ok) { throw new Error('Failed to get Deriv token'); }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
     
-    // Connect to Deriv WebSocket to get account status
     const connection = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${appId}`);
     const api = new DerivAPIBasic({ connection });
 
@@ -73,13 +61,12 @@ export async function GET(req: NextRequest) {
     
     await db.collection('users').updateOne(
       { _id: new ObjectId(session.user.id) },
-      { 
-        $set: {
-            derivAccessToken: accessToken,
-            derivPoaStatus: poaStatus,
-        }
-      }
+      { $set: { derivAccessToken: accessToken, derivPoaStatus: poaStatus } }
     );
+
+    // --- THIS IS THE FIX ---
+    // This tells Next.js to dump the old cached dashboard and build a new one.
+    revalidatePath('/dashboard');
 
     return NextResponse.redirect(new URL('/dashboard?deriv_status=success', req.url));
 
