@@ -1,15 +1,13 @@
-import NextAuth from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { MongoDBAdapter } from "@auth/mongodb-adapter"
-import clientPromise from "@/lib/mongodb"
-import { MongoClient } from "mongodb"
-import bcrypt from "bcryptjs"
-
-// Define a type for the user object to avoid type errors
-import { User } from "next-auth"
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import clientPromise from "@/lib/mongodb";
+import { MongoClient } from "mongodb";
+import bcrypt from "bcryptjs";
 
 const handler = NextAuth({
-  adapter: MongoDBAdapter(clientPromise),
+  // REMOVE THE ADAPTER - THIS IS THE MOST IMPORTANT CHANGE
+  // adapter: MongoDBAdapter(clientPromise), 
+
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -19,57 +17,59 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
-            throw new Error("Missing credentials");
+          console.log("Missing credentials");
+          throw new Error("Missing credentials");
         }
 
         const client: MongoClient = await clientPromise;
-        const usersCollection = client.db().collection("users");
+        const db = client.db(); // Ensure you are getting the db instance
+        const usersCollection = db.collection("users");
+        
+        console.log("Attempting to find user:", credentials.email);
         const user = await usersCollection.findOne({ email: credentials.email });
 
         if (!user || !user.password) {
+          console.log("No user found with this email or user is missing a password.");
           throw new Error("No user found with this email.");
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isValid) {
+          console.log("Invalid password for user:", credentials.email);
           throw new Error("Invalid password.");
         }
-
-        // --- THIS IS THE FIX ---
-        // Return the full user object from the database, but make sure
-        // the `id` property is set to the string representation of `_id`.
+        
+        console.log("Login successful for:", user.email);
+        // Return the object that the JWT callback will use
         return {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
-          // You can include other user properties here if you have them
-          // e.g., image: user.image,
         };
       }
     })
   ],
   session: {
+    // This is correct, you want to use JWTs for your session
     strategy: "jwt",
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
-    // The jwt callback is where you augment the token
     async jwt({ token, user }) {
-      // The `user` object is passed from the `authorize` function on initial sign in.
+      // On initial sign in, the user object is passed in
       if (user) {
-        token.id = user.id; // Persist the user ID to the token
-        // You can add other properties here too:
-        // token.role = user.role;
+        console.log("JWT Callback: User object found, adding to token:", user);
+        token.id = user.id;
       }
       return token;
     },
-    // The session callback gets the token and returns the session object
     async session({ session, token }) {
-      // Make the user ID available on the session object
-      if (token && session.user) {
-        (session.user as any).id = token.id;
+      // The token's properties are passed to the session object
+      if (token?.id && session.user) {
+        (session.user as { id: string }).id = token.id as string;
       }
+      console.log("Session Callback: Final session object:", session);
       return session;
     },
   },
@@ -78,4 +78,5 @@ const handler = NextAuth({
     error: '/login',
   }
 });
+
 export { handler as GET, handler as POST };
