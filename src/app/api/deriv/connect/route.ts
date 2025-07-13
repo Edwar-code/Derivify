@@ -1,90 +1,93 @@
-import { NextResponse } from 'next/server';
+
+import { NextRequest, NextResponse } from 'server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import DerivAPIBasic from '@deriv/deriv-api/dist/DerivAPIBasic';
-import { WebSocket } from 'ws';
-import { AES } from 'crypto-js';
 
-// Helper function to securely encrypt the user's private token before saving it
-const encryptToken = (token: string): string => {
-    return AES.encrypt(token, process.env.CRYPTO_SECRET_KEY!).toString();
-};
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.redirect(new URL('/login?error=AuthenticationRequired', req.url));
+  }
 
-export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return new NextResponse(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+  const searchParams = req.nextUrl.searchParams;
+  const code = searchParams.get('code');
+
+  if (!code) {
+    return NextResponse.redirect(new URL('/dashboard?deriv_status=error', req.url));
+  }
+  
+  // --- CORRECTED APP ID ---
+  const appId = '85288';
+  const clientSecret = process.env.DERIV_CLIENT_SECRET;
+
+  // IMPORTANT: Deriv may not give a secret for some app types.
+  // If you do not have a "Client Secret" in your Deriv dashboard, this check is not needed.
+  if (!clientSecret) {
+    console.error("DERIV_CLIENT_SECRET is not set in environment variables. If your app doesn't have one, this is okay.");
+  }
+
+  try {
+    const bodyParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: appId,
+        code: code,
+        redirect_uri: `${new URL(req.url).origin}/api/deriv/callback`,
+    });
+
+    // Only add the client_secret if it exists
+    if (clientSecret) {
+        bodyParams.append('client_secret', clientSecret);
     }
 
-    try {
-        const { token } = await req.json(); // The user's private token is received from the form
-        if (!token || typeof token !== 'string') {
-            return new NextResponse(JSON.stringify({ message: 'API token is required' }), { status: 400 });
+    const tokenResponse = await fetch('https://oauth.deriv.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: bodyParams,
+    });
+
+    if (!tokenResponse.ok) {
+        const errorBody = await tokenResponse.json();
+        console.error("Failed to get Deriv token:", errorBody);
+        throw new Error('Failed to get token');
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+    
+    // Connect to Deriv WebSocket to get account status
+    const connection = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${appId}`);
+    const api = new DerivAPIBasic({ connection });
+
+    await api.authorize(accessToken);
+    // We only need the proof of address status
+    const accountStatus = await api.getAccountStatus();
+    api.disconnect();
+
+    const poaStatus = accountStatus?.authentication?.identity?.status ?? 'none';
+    
+    // Save the new data to our database
+    const client = await clientPromise;
+    const db = client.db();
+    
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(session.user.id) },
+      { 
+        $set: {
+            derivAccessToken: accessToken, // Consider encrypting this for higher security
+            derivPoaStatus: poaStatus,
         }
+      }
+    );
 
-        // Your app's public ID is used here.
-        const app_id = process.env.DERIV_APP_ID!;
-        const connection = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${app_id}`);
-        const api = new DerivAPIBasic({ connection });
+    return NextResponse.redirect(new URL('/dashboard?deriv_status=success', req.url));
 
-        // This promise validates the user's token and gets their account status
-        const getAccountStatus = () => new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('Deriv API connection timed out.'));
-                api.disconnect();
-            }, 15000);
-
-            // Here, we use the USER'S private token to authorize access to THEIR account
-            api.authorize(token).then(async (authResponse) => {
-                if (authResponse.error) {
-                    clearTimeout(timeout);
-                    reject(new Error(authResponse.error.message));
-                    return;
-                }
-                
-                const statusResponse = await api.get_account_status();
-                clearTimeout(timeout);
-                
-                if (statusResponse.error) {
-                    reject(new Error(statusResponse.error.message));
-                } else {
-                    resolve(statusResponse.get_account_status);
-                }
-            }).catch(error => {
-                clearTimeout(timeout);
-                reject(error);
-            });
-        });
-
-        const accountStatus: any = await getAccountStatus();
-        api.disconnect();
-
-        const poaStatus = accountStatus?.authentication?.document?.status ?? 'none';
-        const encryptedToken = encryptToken(token);
-
-        // Update your database with the status and the ENCRYPTED token
-        const client = await clientPromise;
-        const db = client.db();
-        await db.collection("users").updateOne(
-            { _id: new ObjectId(session.user.id) },
-            { 
-                $set: {
-                    derivApiToken: encryptedToken,
-                    derivPoaStatus: poaStatus,
-                    derivStatusCheckedAt: new Date(),
-                }
-            }
-        );
-
-        return new NextResponse(JSON.stringify({
-            message: 'Deriv account connected successfully',
-            poaStatus: poaStatus
-        }), { status: 200 });
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        return new NextResponse(JSON.stringify({ message: errorMessage }), { status: 500 });
-    }
+  } catch (error) {
+    console.error('Deriv callback error:', error);
+    return NextResponse.redirect(new URL('/dashboard?deriv_status=error', req.url));
+  }
 }
