@@ -1,5 +1,3 @@
-// src/components/layout/header.tsx
-
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -12,28 +10,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-// Import session checking and your logout button
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { LogoutButton } from '@/components/auth/logout-button';
 
-// This component is async so it can await the session on the server
 export async function Header() {
   const session = await getServerSession(authOptions);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        {/* Logo and Main Nav */}
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <ShieldCheck className="h-6 w-6 text-primary" />
             <span className="font-bold">Derivify</span>
           </Link>
         </div>
-
-        {/* Mobile Nav */}
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden">
@@ -46,11 +38,8 @@ export async function Header() {
               <ShieldCheck className="h-6 w-6 text-primary" />
               <span className="font-bold">Derivify</span>
             </Link>
-            {/* You can add more mobile nav links here if needed */}
           </SheetContent>
         </Sheet>
-
-        {/* Right Side Actions */}
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
             {session?.user ? (
@@ -79,9 +68,6 @@ export async function Header() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/profile">Profile</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/orders">My Orders</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <LogoutButton />

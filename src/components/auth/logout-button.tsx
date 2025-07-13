@@ -1,5 +1,3 @@
-// src/components/auth/logout-button.tsx
-
 'use client';
 
 import { signOut } from 'next-auth/react';
@@ -9,7 +7,7 @@ import { LogOut } from 'lucide-react';
 export function LogoutButton() {
   return (
     <DropdownMenuItem
-      onSelect={() => signOut({ callbackUrl: '/' })} // Redirect to homepage after logout
+      onSelect={() => signOut({ callbackUrl: '/' })} // Go to homepage after logout
       className="cursor-pointer"
     >
       <LogOut className="mr-2 h-4 w-4" />
