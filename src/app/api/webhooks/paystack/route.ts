@@ -3,12 +3,13 @@ import crypto from "crypto";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
-export async function POST(req: Request) {
-  const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const REFERRAL_BONUS_AMOUNT = 20;
 
+export async function POST(req: Request) {
   if (!PAYSTACK_SECRET_KEY) {
-    console.error("🔴 Paystack secret key is not set in environment variables.");
-    return new NextResponse("Webhook Error: Server configuration issue.", { status: 500 });
+    console.error("🔴 Paystack secret key is not set.");
+    return new NextResponse("Server configuration issue.", { status: 500 });
   }
 
   const paystackSignature = req.headers.get("x-paystack-signature");
@@ -19,54 +20,68 @@ export async function POST(req: Request) {
     .digest("hex");
 
   if (hash !== paystackSignature) {
-    console.warn("🔴 Webhook Error: Invalid signature received.");
     return new NextResponse("Invalid signature", { status: 401 });
   }
 
   try {
     const event = JSON.parse(body);
-    console.log(`Received Paystack event: ${event.event}`);
 
     if (event.event === "charge.success") {
       const transactionData = event.data;
       const metadata = transactionData.metadata;
-
-      console.log("✅ Payment successful! Preparing to save order...");
       
-      try {
-        const client = await clientPromise;
-        const db = client.db();
-        const ordersCollection = db.collection("orders");
+      const client = await clientPromise;
+      const db = client.db();
 
+      // --- Task 1: Create the Order (Your existing logic) ---
+      try {
         const newOrder = {
-          customerName: metadata.customer_name,
+          _id: new ObjectId(),
+          customerName: metadata.customer_name || 'N/A',
           customerEmail: transactionData.customer.email,
-          documentName: metadata.document_name,
-          amount: transactionData.amount / 100, // Convert from kobo/cents
+          documentName: metadata.document_name || 'N/A',
+          amount: transactionData.amount / 100,
           currency: transactionData.currency,
           reference: transactionData.reference,
           status: 'Awaiting Details',
           createdAt: new Date(),
-          _id: new ObjectId(),
         };
-
-        await ordersCollection.insertOne(newOrder);
-        console.log("✅ Order successfully saved to database:", newOrder);
-
+        await db.collection("orders").insertOne(newOrder);
+        console.log("✅ Order successfully saved:", newOrder.reference);
       } catch (dbError) {
-        console.error("🔴 Database Error: Could not save order.", dbError);
-        // We don't want to return a 500 to Paystack if the db fails,
-        // as they might retry. We'll just log it for now.
-        // In a real production app, you'd have a more robust error handling/retry mechanism.
+        console.error("🔴 DB Error (Order):", dbError);
       }
-    } else {
-      console.log(`- Skipping event: ${event.event}`);
+      
+      // --- Task 2: Award Referral Bonus (New Logic) ---
+      if (metadata.usedReferralCode) {
+        try {
+          const referrer = await db.collection('users').findOne({ 
+            referralCode: metadata.usedReferralCode 
+          });
+
+          if (referrer) {
+            const bonusRecord = {
+              amount: REFERRAL_BONUS_AMOUNT,
+              fromUserId: metadata.payingUserId || 'unknown',
+              fromCustomerName: metadata.customer_name || 'New User',
+              status: 'unclaimed',
+              earnedAt: new Date(),
+            };
+            await db.collection('users').updateOne(
+              { _id: referrer._id },
+              { $push: { referralBonuses: bonusRecord } }
+            );
+            console.log(`✅ Bonus of ${REFERRAL_BONUS_AMOUNT} awarded to ${referrer.email}`);
+          }
+        } catch (bonusError) {
+          console.error("🔴 DB Error (Bonus):", bonusError);
+        }
+      }
     }
 
-    return new NextResponse("Webhook received successfully.", { status: 200 });
-
+    return new NextResponse("Webhook received.", { status: 200 });
   } catch (error) {
     console.error("🔴 Error processing webhook:", error);
-    return new NextResponse("Webhook Error: Could not process request.", { status: 500 });
+    return new NextResponse("Webhook processing error.", { status: 500 });
   }
 }

@@ -1,10 +1,8 @@
-// src/app/(main)/layout.tsx
-
 'use client';
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Archive, Bell, User, Menu, ShieldCheck, HelpCircle, Settings, Sun, Home, Languages, MessageSquare, LogOut } from "lucide-react";
+import { Archive, Bell, User, Menu, ShieldCheck, HelpCircle, Settings, Sun, Home, Languages, MessageSquare, LogOut, Moon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,19 +10,19 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { signOut } from 'next-auth/react'; // <-- 1. ADD THIS IMPORT
+import { signOut } from 'next-auth/react';
+import { useTheme } from "next-themes"; // Import the useTheme hook
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [time, setTime] = useState('');
-  const router = useRouter(); // This is no longer needed for logout but can stay for other uses
+  const { theme, setTheme } = useTheme(); // Get theme state and setter
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -37,23 +35,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         const seconds = now.getUTCSeconds().toString().padStart(2, '0');
         setTime(`${year}-${month}-${day} ${hours}:${minutes}:${seconds} GMT`);
     };
-
     updateDateTime();
     const timer = setInterval(updateDateTime, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
   const handleLogout = () => {
-    // 2. USE THE CORRECT signOut FUNCTION
-    // Let NextAuth handle the redirect with callbackUrl for more reliability.
     signOut({ callbackUrl: '/' }); 
   }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+      {/* --- HEADER (No Changes) --- */}
       <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 z-50">
-        <div className="flex items-center gap-6">
+        {/* ... header content is unchanged ... */}
+         <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-2 text-foreground font-bold text-lg">
                 <ShieldCheck className="h-6 w-6 text-primary" />
                 <span className="hidden md:inline">Derivify</span>
@@ -69,7 +65,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </Link>
             </nav>
         </div>
-
         <div className="flex w-full items-center justify-end gap-4 md:ml-auto md:gap-2 lg:gap-4">
             <Button variant="ghost" size="icon" className="text-muted-foreground relative hover:text-primary">
                 <Bell className="h-5 w-5" />
@@ -134,26 +129,56 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </Sheet>
         </div>
       </header>
+
       <main className="flex flex-1 flex-col gap-4 py-8 md:gap-8">
         <div className="container mx-auto">
             {children}
         </div>
       </main>
-       <footer className="sticky bottom-0 flex h-10 items-center gap-4 border-t bg-card px-4 md:px-6 z-50 text-muted-foreground">
+
+      {/* --- UPDATED FOOTER --- */}
+      <footer className="sticky bottom-0 flex h-10 items-center gap-4 border-t bg-card px-4 md:px-6 z-50 text-muted-foreground">
           <div className="flex items-center gap-4 text-sm flex-1">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
             <div className="text-xs">{time || 'Loading...'}</div>
             <div className="hidden md:flex items-center gap-4">
-                <MessageSquare className="h-4 w-4 cursor-pointer hover:text-primary" />
-                <ShieldCheck className="h-4 w-4 cursor-pointer hover:text-primary" />
-                <Sun className="h-4 w-4 cursor-pointer hover:text-primary" />
-                <HelpCircle className="h-4 w-4 cursor-pointer hover:text-primary" />
+                {/* Live Chat Icon - Opens a link in a new tab */}
+                <a href="https://tawk.to/" target="_blank" rel="noopener noreferrer" aria-label="Live Chat">
+                  <MessageSquare className="h-4 w-4 cursor-pointer hover:text-primary" />
+                </a>
+                {/* Status Page Icon - Internal navigation */}
+                <Link href="/status" aria-label="System Status">
+                  <ShieldCheck className="h-4 w-4 cursor-pointer hover:text-primary" />
+                </Link>
+                {/* Theme Toggle Button */}
+                <button
+                    onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                    aria-label="Toggle theme"
+                    className="text-muted-foreground hover:text-primary"
+                >
+                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                </button>
+                {/* Help Page Icon - Internal navigation */}
+                <Link href="/help" aria-label="Help Center">
+                  <HelpCircle className="h-4 w-4 cursor-pointer hover:text-primary" />
+                </Link>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Languages className="h-4 w-4"/>
-            EN
-          </div>
+          {/* Language Switcher Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-2 text-sm cursor-pointer hover:text-primary">
+                <Languages className="h-4 w-4"/>
+                EN
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-0">
+                <DropdownMenuItem>English</DropdownMenuItem>
+                <DropdownMenuItem disabled>Español</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
       </footer>
     </div>
   );

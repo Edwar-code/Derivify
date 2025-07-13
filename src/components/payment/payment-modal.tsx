@@ -1,7 +1,6 @@
-
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { usePaystackPayment } from 'react-paystack';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,71 +23,53 @@ interface Document {
   price: number;
 }
 
+// --- UPDATED PROPS ---
 interface PaymentModalProps {
   document: Document;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  usedReferralCode?: string | null;
 }
 
-export function PaymentModal({ document }: PaymentModalProps) {
+export function PaymentModal({ document, userId, userEmail, userName, usedReferralCode }: PaymentModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
-  // Mock user for now since auth is disabled
-  const user = {
-    uid: 'mock-user-id',
-    displayName: 'John Doe',
-    email: 'john.doe@example.com'
-  }
-
-  useEffect(() => {
-    // We can pre-fill this if we have user data later
-    // For now, it will be empty initially
-  }, []);
-
   const config = {
     reference: new Date().getTime().toString(),
-    email,
+    email: userEmail, // Use the logged-in user's email
     amount: document.price * 100, // Paystack amount is in kobo/cents
     publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
     currency: 'KES',
     metadata: {
-      user_id: user?.uid, // Using mock user ID
+      // --- CRITICAL METADATA FOR BACKEND ---
+      payingUserId: userId, 
       document_name: document.name,
-      customer_name: name,
+      customer_name: userName,
+      usedReferralCode: usedReferralCode || '',
     },
   };
 
   const initializePayment = usePaystackPayment(config);
 
-  const onSuccess = (reference: any) => {
-    console.log('Payment successful on client. Reference:', reference);
+  const onSuccess = () => {
     setIsLoading(false);
     setIsOpen(false);
     toast({
       title: 'Payment Successful!',
-      description: `Your order for ${document.name} has been placed. Please check your orders to submit details.`,
+      description: `Your order for ${document.name} has been placed. Please check 'My Orders'.`,
       className: 'bg-green-500 text-white',
     });
-    // The webhook will handle creating the order in the database.
   };
 
   const onClose = () => {
-    console.log('Payment modal closed.');
     setIsLoading(false);
   };
 
   const handlePaystackSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) {
-        toast({
-            title: "Error",
-            description: "Please fill in your name and email.",
-            variant: "destructive",
-        })
-        return;
-    }
     setIsLoading(true);
     initializePayment({ onSuccess, onClose });
   };
@@ -100,42 +81,13 @@ export function PaymentModal({ document }: PaymentModalProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px] bg-card border-border">
         <DialogHeader>
-          <DialogTitle>Complete Your Purchase</DialogTitle>
+          <DialogTitle>Confirm Your Purchase</DialogTitle>
           <DialogDescription>
-            You are purchasing the <span className="font-bold text-primary">{document.name}</span> for KES {document.price}.
+            You are purchasing the <span className="font-bold text-primary">{document.name}</span> for KES {document.price}. The payment details will use your registered name and email.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handlePaystackSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="col-span-3"
-                placeholder="John Doe"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="col-span-3"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-          </div>
-          <DialogFooter>
+          <DialogFooter className="pt-4">
             <Button type="submit" disabled={isLoading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
               {isLoading ? (
                 <>
