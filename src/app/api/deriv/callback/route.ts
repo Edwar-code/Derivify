@@ -1,5 +1,8 @@
+// The file path MUST BE: app/api/deriv/callback/route.ts
 
-import { NextRequest, NextResponse } from 'server';
+// --- THIS IS THE CORRECTED IMPORT ---
+import { NextRequest, NextResponse } from 'next/server'; 
+
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import clientPromise from '@/lib/mongodb';
@@ -19,14 +22,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard?deriv_status=error', req.url));
   }
   
-  // --- CORRECTED APP ID ---
   const appId = '85288';
   const clientSecret = process.env.DERIV_CLIENT_SECRET;
 
-  // IMPORTANT: Deriv may not give a secret for some app types.
-  // If you do not have a "Client Secret" in your Deriv dashboard, this check is not needed.
   if (!clientSecret) {
-    console.error("DERIV_CLIENT_SECRET is not set in environment variables. If your app doesn't have one, this is okay.");
+    console.error("Critical: DERIV_CLIENT_SECRET is not set in environment variables.");
+    // Even if Deriv doesn't provide one, it's safer to have this check.
+    // If your app truly doesn't need one, you can remove this block.
+    return NextResponse.redirect(new URL('/dashboard?deriv_status=error', req.url));
   }
 
   try {
@@ -35,12 +38,8 @@ export async function GET(req: NextRequest) {
         client_id: appId,
         code: code,
         redirect_uri: `${new URL(req.url).origin}/api/deriv/callback`,
+        client_secret: clientSecret,
     });
-
-    // Only add the client_secret if it exists
-    if (clientSecret) {
-        bodyParams.append('client_secret', clientSecret);
-    }
 
     const tokenResponse = await fetch('https://oauth.deriv.com/oauth2/token', {
       method: 'POST',
@@ -64,13 +63,11 @@ export async function GET(req: NextRequest) {
     const api = new DerivAPIBasic({ connection });
 
     await api.authorize(accessToken);
-    // We only need the proof of address status
     const accountStatus = await api.getAccountStatus();
     api.disconnect();
 
     const poaStatus = accountStatus?.authentication?.identity?.status ?? 'none';
     
-    // Save the new data to our database
     const client = await clientPromise;
     const db = client.db();
     
@@ -78,7 +75,7 @@ export async function GET(req: NextRequest) {
       { _id: new ObjectId(session.user.id) },
       { 
         $set: {
-            derivAccessToken: accessToken, // Consider encrypting this for higher security
+            derivAccessToken: accessToken,
             derivPoaStatus: poaStatus,
         }
       }
