@@ -78,5 +78,4 @@ const handler = NextAuth({
     error: '/login',
   }
 });
-
 export { handler as GET, handler as POST };
