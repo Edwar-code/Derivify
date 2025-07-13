@@ -1,3 +1,4 @@
+// src/app/(main)/layout.tsx
 
 'use client';
 
@@ -19,12 +20,11 @@ import {
 } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-
+import { signOut } from 'next-auth/react'; // <-- 1. ADD THIS IMPORT
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [time, setTime] = useState('');
-  const router = useRouter();
+  const router = useRouter(); // This is no longer needed for logout but can stay for other uses
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -44,9 +44,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return () => clearInterval(timer);
   }, []);
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
+  const handleLogout = () => {
+    // 2. USE THE CORRECT signOut FUNCTION
+    // Let NextAuth handle the redirect with callbackUrl for more reliability.
+    signOut({ callbackUrl: '/' }); 
   }
 
   return (
