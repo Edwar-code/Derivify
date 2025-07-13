@@ -17,7 +17,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { ReferralCard } from "@/components/dashboard/referral-card";
 import { DerivConnectionCard } from "@/components/dashboard/deriv-connection-card";
-import { BonusClaimCard } from "@/components/dashboard/bonus-claim-card"; // Import new component
+import { BonusClaimCard } from "@/components/dashboard/bonus-claim-card";
 
 const documents = [
     { id: "doc-1", name: "KRA Returns Document", description: "Official KRA document.", price: 150, icon: <FileText className="w-6 h-6 text-primary" /> },
@@ -52,17 +52,28 @@ export default async function DashboardPage() {
   const referralCode = user.referralCode ?? "N/A";
   const derivPoaStatus = user.derivPoaStatus ?? 'none';
   
-  // --- Calculate total claimable bonus on the server ---
   const claimableBonus = user.referralBonuses
     ?.filter((b: any) => b.status === 'unclaimed')
     .reduce((sum: number, b: any) => sum + b.amount, 0) ?? 0;
 
   return (
     <div className="space-y-8">
-      {isAdmin && ( /* Admin Panel Card */ )}
+      {/* --- THIS BLOCK IS NOW CORRECTED --- */}
+      {isAdmin && (
+        <Card className="border-primary bg-primary/10">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck/> Admin Panel</CardTitle>
+                <CardDescription>You have administrative privileges. Access the admin dashboard to manage users and documents.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild>
+                    <Link href="/admin/dashboard">Go to Admin Dashboard</Link>
+                </Button>
+            </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* --- Bonus Claim Card --- */}
         <BonusClaimCard amount={claimableBonus} />
 
         <Card className="border-border bg-card shadow-md">
@@ -89,7 +100,6 @@ export default async function DashboardPage() {
                       <div className="text-primary">{doc.icon}</div>
                       <h3 className="font-semibold">{doc.name}</h3>
                       <p className="text-xs text-muted-foreground">{doc.description}</p>
-                      {/* --- Pass all required props to PaymentModal --- */}
                       <PaymentModal 
                         document={doc} 
                         userId={user._id.toString()}
