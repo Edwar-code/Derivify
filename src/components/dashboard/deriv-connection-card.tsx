@@ -13,61 +13,91 @@ interface DerivConnectionCardProps {
 }
 
 export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardProps) {
+  // We use local state to provide an instant UI update without a full page reload.
+  const [status, setStatus] = useState(initialPoaStatus);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
+  // This useEffect hook is the key to the new flow.
   useEffect(() => {
-    const derivStatus = searchParams.get('deriv_status');
-    if (derivStatus === 'success') {
-      toast({
-        title: "Connection Successful",
-        description: "Your Deriv account has been linked.",
-        className: "bg-green-500 text-white",
-      });
-      router.replace('/dashboard');
-    } else if (derivStatus === 'error') {
-      toast({
-        title: "Connection Failed",
-        description: "Could not link your Deriv account. Please try again.",
-        variant: "destructive",
-      });
-      router.replace('/dashboard');
+    // 1. Check if the user has been redirected back from Deriv with a code.
+    const code = searchParams.get('code');
+
+    if (code) {
+      setIsLoading(true);
+      toast({ title: "Finishing connection...", description: "Verifying with Deriv, please wait." });
+
+      // 2. Define an async function to send the code to our new backend API.
+      const exchangeCodeForStatus = async (authCode: string) => {
+        try {
+          const response = await fetch('/api/deriv/exchange-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: authCode }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Server failed to exchange the code.');
+          }
+          
+          const result = await response.json();
+          if (result.success) {
+            // 3. On success, update the UI instantly and show a success message.
+            setStatus(result.status);
+            toast({
+              title: "Connection Successful!",
+              description: "Your Proof of Address status has been updated.",
+              className: "bg-green-500 text-white",
+            });
+          } else {
+            throw new Error(result.error || 'An unknown error occurred.');
+          }
+
+        } catch (error) {
+          toast({ title: "Connection Failed", description: (error as Error).message, variant: "destructive" });
+        } finally {
+          // 4. Clean the URL by removing the 'code' parameter, so this doesn't run again on refresh.
+          router.replace('/dashboard');
+          setIsLoading(false);
+        }
+      };
+
+      exchangeCodeForStatus(code);
     }
-  }, [searchParams, router, toast]);
+  }, []); // This empty dependency array means the effect runs only once when the page loads.
 
   const handleConnect = () => {
     setIsLoading(true);
-    
-    // --- CORRECTED APP ID ---
-    const appId = '85288'; 
-    
-    // --- CORRECTED SCOPES ---
-    const scopes = 'read+payments+trade+trading_information+admin';
+    const appId = '85288';
+    const scopes = 'read+trading_information';
+    // This MUST match exactly what you have set in your Deriv App dashboard.
+    const redirectUri = `${window.location.origin}/dashboard`; 
 
-    const redirectUri = `${window.location.origin}/api/deriv/callback`;
+    const derivAuthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
-    const derivAuthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&redirect_uri=${redirectUri}&scope=${scopes}`;
-    
+    // Send the user to Deriv to authorize.
     window.location.href = derivAuthUrl;
   };
 
   const renderStatus = () => {
-    // ... (This part remains the same as before) ...
-    switch (initialPoaStatus) {
+    if (isLoading) {
+       return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Verifying...</Badge>;
+    }
+    switch (status) {
       case 'verified':
-        return <Badge variant="success" className="text-lg"><CheckCircle2 className="mr-2 h-5 w-5"/>Verified</Badge>;
+        return <Badge variant="success" className="text-base"><CheckCircle2 className="mr-2 h-4 w-4"/>Verified</Badge>;
       case 'pending':
-        return <Badge variant="secondary" className="text-lg"><Loader2 className="mr-2 h-5 w-5 animate-spin"/>Pending</Badge>;
+        return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Pending</Badge>;
       case 'rejected':
-        return <Badge variant="destructive" className="text-lg"><XCircle className="mr-2 h-5 w-5"/>Rejected</Badge>;
+        return <Badge variant="destructive" className="text-base"><XCircle className="mr-2 h-4 w-4"/>Rejected</Badge>;
       case 'none':
       default:
         return (
           <Button onClick={handleConnect} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LinkIcon className="mr-2 h-4 w-4" />}
-            Connect to Deriv
+            <LinkIcon className="mr-2 h-4 w-4" />
+            Connect Deriv Account
           </Button>
         );
     }
@@ -77,13 +107,13 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
     <Card className="border-border bg-card shadow-md">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Deriv Account Connection</span>
+          <span>Proof of Address Status</span>
           {renderStatus()}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          Connect your Deriv account to automatically check the status of your Proof of Address (POA) verification.
+          Connect your Deriv account to automatically fetch and display your Proof of Address (POA) verification status.
         </p>
       </CardContent>
     </Card>

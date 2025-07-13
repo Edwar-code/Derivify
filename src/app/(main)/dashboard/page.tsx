@@ -29,19 +29,13 @@ const documents = [
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   
-  if (!session || !session.user || !session.user.id) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
-  let user = null;
-  try {
-    const client = await clientPromise;
-    const db = client.db();
-    user = await db.collection("users").findOne({ _id: new ObjectId(session.user.id) });
-  } catch (error) {
-    console.error("Dashboard Page: Error querying database.", error);
-    redirect("/login?error=DatabaseError");
-  }
+  const client = await clientPromise;
+  const db = client.db();
+  const user = await db.collection("users").findOne({ _id: new ObjectId(session.user.id) });
 
   if (!user) {
     redirect("/login");
@@ -58,7 +52,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* --- THIS BLOCK IS NOW CORRECTED --- */}
       {isAdmin && (
         <Card className="border-primary bg-primary/10">
             <CardHeader>
@@ -75,38 +68,31 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <BonusClaimCard amount={claimableBonus} />
-
-        <Card className="border-border bg-card shadow-md">
+        <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Wallet/> Wallet Balance</CardTitle></CardHeader>
             <CardContent className="space-y-4">
                 <p className="text-3xl font-bold text-foreground">KES {walletBalance.toFixed(2)}</p>
                 <WithdrawalModal currentBalance={walletBalance} />
             </CardContent>
         </Card>
-        
         <ReferralCard referralCode={referralCode} />
       </div>
 
+      {/* Pass the status from our database into the component as a prop. */}
       <DerivConnectionCard initialPoaStatus={derivPoaStatus} />
 
-      <Card className="border-border bg-card shadow-md">
+      <Card>
           <CardHeader>
             <CardTitle>Get Your Proof of Address Documents</CardTitle>
             <CardDescription>Select a document to purchase. Payments are securely handled.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {documents.map((doc) => (
-                  <div key={doc.id} className="flex flex-col items-center justify-between text-center gap-4 p-4 rounded-lg border bg-background">
+                  <div key={doc.id} className="flex flex-col items-center text-center gap-4 p-4 rounded-lg border bg-background">
                       <div className="text-primary">{doc.icon}</div>
                       <h3 className="font-semibold">{doc.name}</h3>
                       <p className="text-xs text-muted-foreground">{doc.description}</p>
-                      <PaymentModal 
-                        document={doc} 
-                        userId={user._id.toString()}
-                        userEmail={user.email}
-                        userName={user.name}
-                        usedReferralCode={user.usedReferralCode}
-                      />
+                      <PaymentModal document={doc} userId={user._id.toString()} userEmail={user.email} userName={user.name} usedReferralCode={user.usedReferralCode} />
                   </div>
               ))}
           </CardContent>
