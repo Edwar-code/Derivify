@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PaymentModal } from "@/components/payment/payment-modal";
-import { FileText, Building, FileUp, Banknote, Wallet, Gift, Copy, ShieldCheck } from 'lucide-react';
+import { FileText, Building, FileUp, Banknote, Wallet, ShieldCheck } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { WithdrawalModal } from "@/components/wallet/withdrawal-modal";
 import { getServerSession } from "next-auth/next";
@@ -15,6 +15,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
+import { ReferralCard } from "@/components/dashboard/referral-card"; // Import the new component
 
 const documents = [
     { id: "doc-1", name: "KRA Returns Document", description: "Official KRA document to serve as a proof of address.", price: 150, icon: <FileText className="w-6 h-6 text-primary" /> },
@@ -38,7 +39,8 @@ export default async function DashboardPage() {
     user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
   } catch (error) {
     console.error("Dashboard Page: Error querying database.", error);
-    redirect("/login");
+    // It's good practice to redirect on database error as well
+    redirect("/login?error=DatabaseError");
   }
 
   if (!user) {
@@ -46,6 +48,7 @@ export default async function DashboardPage() {
   }
   
   const walletBalance = user.walletBalance ?? 0;
+  // Fetch the user's personal referral code from the database
   const referralCode = user.referralCode ?? "N/A";
 
   return (
@@ -76,21 +79,9 @@ export default async function DashboardPage() {
                 <WithdrawalModal currentBalance={walletBalance} />
             </CardContent>
         </Card>
-        <Card className="border-border bg-card shadow-md">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Gift/> Referral Code</CardTitle>
-                <CardDescription>Share this code to earn rewards.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="border border-dashed border-border rounded-md p-3 text-center">
-                    <p className="text-2xl font-mono tracking-widest text-foreground">{referralCode}</p>
-                </div>
-                <Button variant="outline" className="w-full">
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy Code
-                </Button>
-            </CardContent>
-        </Card>
+        
+        {/* Replace the old static card with the new interactive client component */}
+        <ReferralCard referralCode={referralCode} />
       </div>
 
       <Card className="border-border bg-card shadow-md">
