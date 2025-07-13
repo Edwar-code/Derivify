@@ -5,6 +5,9 @@ import clientPromise from "@/lib/mongodb"
 import { MongoClient } from "mongodb"
 import bcrypt from "bcryptjs"
 
+// Define a type for the user object to avoid type errors
+import { User } from "next-auth"
+
 const handler = NextAuth({
   adapter: MongoDBAdapter(clientPromise),
   providers: [
@@ -23,7 +26,6 @@ const handler = NextAuth({
         const usersCollection = client.db().collection("users");
         const user = await usersCollection.findOne({ email: credentials.email });
 
-        // Check if user exists and has a password
         if (!user || !user.password) {
           throw new Error("No user found with this email.");
         }
@@ -34,41 +36,47 @@ const handler = NextAuth({
           throw new Error("Invalid password.");
         }
 
-        // Return the user object if everything is valid
+        // --- THIS IS THE FIX ---
+        // Return the full user object from the database, but make sure
+        // the `id` property is set to the string representation of `_id`.
         return {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
+          // You can include other user properties here if you have them
+          // e.g., image: user.image,
         };
       }
     })
   ],
   session: {
-    // Use JSON Web Tokens for session management
     strategy: "jwt",
   },
   secret: process.env.AUTH_SECRET,
   callbacks: {
-    // This callback adds the user ID from the token to the session object
+    // The jwt callback is where you augment the token
+    async jwt({ token, user }) {
+      // The `user` object is passed from the `authorize` function on initial sign in.
+      if (user) {
+        token.id = user.id; // Persist the user ID to the token
+        // You can add other properties here too:
+        // token.role = user.role;
+      }
+      return token;
+    },
+    // The session callback gets the token and returns the session object
     async session({ session, token }) {
-      if (token?.sub && session.user) {
-        (session.user as { id: string }).id = token.sub;
+      // Make the user ID available on the session object
+      if (token && session.user) {
+        (session.user as any).id = token.id;
       }
       return session;
     },
-    // This callback is called when a JWT is created
-    async jwt({ token, user }) {
-        if (user) {
-            token.sub = user.id
-        }
-        return token
-    }
   },
   pages: {
-    signIn: '/login', // Point to your custom login page
-    error: '/login',   // On error, redirect back to the login page
+    signIn: '/login',
+    error: '/login',
   }
 });
 
-// This is the required export for the App Router that makes it work
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST };
