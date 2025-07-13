@@ -15,7 +15,8 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
-import { ReferralCard } from "@/components/dashboard/referral-card"; // Import the new component
+import { ReferralCard } from "@/components/dashboard/referral-card";
+import { DerivConnectionCard } from "@/components/dashboard/deriv-connection-card"; // Import the new component
 
 const documents = [
     { id: "doc-1", name: "KRA Returns Document", description: "Official KRA document to serve as a proof of address.", price: 150, icon: <FileText className="w-6 h-6 text-primary" /> },
@@ -39,7 +40,6 @@ export default async function DashboardPage() {
     user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
   } catch (error) {
     console.error("Dashboard Page: Error querying database.", error);
-    // It's good practice to redirect on database error as well
     redirect("/login?error=DatabaseError");
   }
 
@@ -48,12 +48,12 @@ export default async function DashboardPage() {
   }
   
   const walletBalance = user.walletBalance ?? 0;
-  // Fetch the user's personal referral code from the database
   const referralCode = user.referralCode ?? "N/A";
+  // Fetch the Deriv POA status from the user document
+  const derivPoaStatus = user.derivPoaStatus ?? 'none';
 
   return (
     <div className="space-y-8">
-      {/* This card will only render if the user's role from the DB is 'admin' */}
       {user.role === 'admin' && (
         <Card className="border-primary bg-primary/10">
             <CardHeader>
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* The rest of the user's dashboard */}
+      {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-border bg-card shadow-md">
             <CardHeader>
@@ -80,9 +80,11 @@ export default async function DashboardPage() {
             </CardContent>
         </Card>
         
-        {/* Replace the old static card with the new interactive client component */}
         <ReferralCard referralCode={referralCode} />
       </div>
+
+      {/* Add the new Deriv Connection Card here, separate from the grid */}
+      <DerivConnectionCard initialPoaStatus={derivPoaStatus} />
 
       <Card className="border-border bg-card shadow-md">
           <CardHeader>
