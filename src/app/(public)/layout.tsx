@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Providers from "./providers"; // Assuming providers.tsx is in app/
+import Providers from "./../providers"; // Assuming providers.tsx is in app/
 import { Toaster } from "@/components/ui/toaster";
 import { Header } from "@/components/layout/header"; // Import the new Header
 
