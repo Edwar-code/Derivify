@@ -48,23 +48,39 @@ const documents = [
   },
 ];
 
-// The page component is now async
 export default async function DashboardPage() {
   const session = await getServerSession();
 
-  // If there's no session, the middleware should have redirected, but this is a failsafe.
+  // --- DEBUGGING LOG ---
+  console.log("Dashboard Page - Session Object:", JSON.stringify(session, null, 2));
+
+  // --- CHECK 1: Validate the session object itself ---
   if (!session || !session.user || !(session.user as any).id) {
+    console.log("Dashboard Page: Redirecting to login due to missing session or user ID.");
     redirect("/login");
   }
 
   const userId = (session.user as any).id;
+  console.log("Dashboard Page - User ID from session:", userId);
 
-  // Fetch the user data from MongoDB
-  const client = await clientPromise;
-  const db = client.db();
-  const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+  let user = null;
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    
+    // --- CHECK 2: Validate the user from the database ---
+    // This is the most likely point of failure.
+    user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    console.log("Dashboard Page - User found in DB:", JSON.stringify(user, null, 2));
+
+  } catch (error) {
+    console.error("Dashboard Page: Error querying database.", error);
+    // If new ObjectId(userId) fails, it will be caught here.
+    redirect("/login");
+  }
 
   if (!user) {
+    console.log("Dashboard Page: Redirecting to login because user was not found in the database with ID:", userId);
     redirect("/login"); // User not found in DB
   }
 
@@ -72,9 +88,13 @@ export default async function DashboardPage() {
   const walletBalance = user.walletBalance ?? 0;
   const referralCode = user.referralCode ?? "N/A";
 
+  // --- If you reach here, everything worked ---
+  console.log("Dashboard Page: Successfully loaded for user:", user.email);
+
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* ... The rest of your JSX remains the same ... */}
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-border bg-card shadow-md">
             {/* ... card content ... */}
             <CardContent className="space-y-4">
