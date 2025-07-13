@@ -1,3 +1,5 @@
+// This file is located at your dashboard/page.tsx
+
 import {
   Card,
   CardContent,
@@ -16,8 +18,10 @@ import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
+// Import the authOptions from your NextAuth configuration
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
 const documents = [
-  // ... (your documents array remains the same)
   {
     id: "doc-1",
     name: "KRA Returns Document",
@@ -49,18 +53,20 @@ const documents = [
 ];
 
 export default async function DashboardPage() {
-  const session = await getServerSession();
+  // Pass the authOptions to getServerSession to get the session correctly
+  const session = await getServerSession(authOptions);
 
   // --- DEBUGGING LOG ---
   console.log("Dashboard Page - Session Object:", JSON.stringify(session, null, 2));
 
   // --- CHECK 1: Validate the session object itself ---
-  if (!session || !session.user || !(session.user as any).id) {
+  // The type for session.user is now correctly inferred to potentially have an 'id'
+  if (!session || !session.user || !session.user.id) {
     console.log("Dashboard Page: Redirecting to login due to missing session or user ID.");
     redirect("/login");
   }
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   console.log("Dashboard Page - User ID from session:", userId);
 
   let user = null;
@@ -69,7 +75,6 @@ export default async function DashboardPage() {
     const db = client.db();
     
     // --- CHECK 2: Validate the user from the database ---
-    // This is the most likely point of failure.
     user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
     console.log("Dashboard Page - User found in DB:", JSON.stringify(user, null, 2));
 
@@ -81,33 +86,34 @@ export default async function DashboardPage() {
 
   if (!user) {
     console.log("Dashboard Page: Redirecting to login because user was not found in the database with ID:", userId);
-    redirect("/login"); // User not found in DB
+    redirect("/login");
   }
 
   // Use real data from the database, with fallbacks for safety
   const walletBalance = user.walletBalance ?? 0;
   const referralCode = user.referralCode ?? "N/A";
 
-  // --- If you reach here, everything worked ---
   console.log("Dashboard Page: Successfully loaded for user:", user.email);
 
   return (
     <div className="space-y-8">
-      {/* ... The rest of your JSX remains the same ... */}
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-border bg-card shadow-md">
-            {/* ... card content ... */}
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wallet/> Wallet Balance</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
-                {/* DYNAMIC DATA */}
                 <p className="text-3xl font-bold text-foreground">KES {walletBalance.toFixed(2)}</p>
                 <WithdrawalModal currentBalance={walletBalance} />
             </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-md">
-            {/* ... card content ... */}
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Gift/> Referral Code</CardTitle>
+                <CardDescription>Share this code to earn rewards.</CardDescription>
+            </CardHeader>
             <CardContent className="space-y-4">
                 <div className="border border-dashed border-border rounded-md p-3 text-center">
-                    {/* DYNAMIC DATA */}
                     <p className="text-2xl font-mono tracking-widest text-foreground">{referralCode}</p>
                 </div>
                 <Button variant="outline" className="w-full">
@@ -119,11 +125,16 @@ export default async function DashboardPage() {
       </div>
 
       <Card className="border-border bg-card shadow-md">
-          {/* ... card content ... */}
+          <CardHeader>
+            <CardTitle>Get Your Proof of Address Documents</CardTitle>
+            <CardDescription>Select a document to purchase. Payments are securely handled.</CardDescription>
+          </CardHeader>
           <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between space-x-4 p-4 rounded-lg border border-border bg-background">
-                      {/* ... content */}
+                  <div key={doc.id} className="flex flex-col items-center justify-between text-center gap-4 p-4 rounded-lg border border-border bg-background">
+                      <div className="text-primary">{doc.icon}</div>
+                      <h3 className="font-semibold">{doc.name}</h3>
+                      <p className="text-xs text-muted-foreground">{doc.description}</p>
                       <PaymentModal document={doc} />
                   </div>
               ))}

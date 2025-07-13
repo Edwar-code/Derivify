@@ -1,13 +1,16 @@
+// This file is located at app/api/auth/[...nextauth]/route.js
+
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import clientPromise from "@/lib/mongodb";
 import { MongoClient } from "mongodb";
 import bcrypt from "bcryptjs";
 
-const handler = NextAuth({
-  // REMOVE THE ADAPTER - THIS IS THE MOST IMPORTANT CHANGE
-  // adapter: MongoDBAdapter(clientPromise), 
-
+/**
+ * These are your NextAuth options. By exporting them, you can use them in other places
+ * like your dashboard page to get the server-side session.
+ */
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -21,7 +24,7 @@ const handler = NextAuth({
           throw new Error("Missing credentials");
         }
 
-        const client: MongoClient = await clientPromise;
+        const client = await clientPromise;
         const db = client.db(); // Ensure you are getting the db instance
         const usersCollection = db.collection("users");
         
@@ -67,7 +70,8 @@ const handler = NextAuth({
     async session({ session, token }) {
       // The token's properties are passed to the session object
       if (token?.id && session.user) {
-        (session.user as { id: string }).id = token.id as string;
+        // Here we are casting the user object to allow adding the 'id' property
+        (session.user).id = token.id;
       }
       console.log("Session Callback: Final session object:", session);
       return session;
@@ -75,8 +79,12 @@ const handler = NextAuth({
   },
   pages: {
     signIn: '/login',
-    error: '/login',
+    error: '/login', // Redirect to login page on error
   }
-});
+};
 
+// The handler is created using the exported options
+const handler = NextAuth(authOptions);
+
+// This is the standard export for Next.js App Router route handlers
 export { handler as GET, handler as POST };
