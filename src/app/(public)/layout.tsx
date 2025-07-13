@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Providers from "../providers"; // Fixed import path
+import Providers from "./providers"; // Assuming providers.tsx is in app/
 import { Toaster } from "@/components/ui/toaster";
+import { Header } from "@/components/layout/header"; // Import the new Header
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,9 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* The Providers component must wrap your page content */}
         <Providers>
-          {children}
+          <Header />
+          <main className="flex-1">{children}</main>
           <Toaster />
         </Providers>
       </body>

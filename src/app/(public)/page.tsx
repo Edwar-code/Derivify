@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Building, FileUp, Banknote, CheckCircle, Shield, Zap } from "lucide-react";
@@ -47,7 +46,7 @@ export default function PublicPage() {
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
                 <Button asChild size="lg">
-                  <Link href="/dashboard">Get Started Now</Link>
+                  <Link href="/signup">Get Started Now</Link>
                 </Button>
               </div>
             </div>
@@ -120,7 +119,7 @@ export default function PublicPage() {
               </p>
             </div>
             <Button asChild size="lg">
-              <Link href="/dashboard">Access Your Dashboard</Link>
+              <Link href="/signup">Create an Account</Link>
             </Button>
           </div>
         </div>
