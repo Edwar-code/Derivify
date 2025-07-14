@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import DerivAPIBasic from '@deriv/deriv-api/dist/DerivAPIBasic';
-import { revalidatePath } from 'next/cache'; // <-- IMPORTANT IMPORT
+import { revalidatePath } from 'next/cache';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
     }
     
     const appId = '85288';
-
     const connection = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${appId}`);
     const api = new DerivAPIBasic({ connection });
     await api.authorize(token);
@@ -36,9 +35,6 @@ export async function POST(req: NextRequest) {
       { $set: { derivPoaStatus: poaStatus } }
     );
 
-    // --- THIS IS THE FIX ---
-    // This tells Next.js: "The data for the dashboard has changed.
-    // The next time someone visits, you must rebuild the page from scratch."
     revalidatePath('/dashboard');
 
     return NextResponse.json({ success: true, status: poaStatus });

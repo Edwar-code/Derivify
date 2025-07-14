@@ -78,7 +78,6 @@ export default async function DashboardPage() {
         <ReferralCard referralCode={referralCode} />
       </div>
 
-      {/* Pass the status from our database into the component as a prop. */}
       <DerivConnectionCard initialPoaStatus={derivPoaStatus} />
 
       <Card>
