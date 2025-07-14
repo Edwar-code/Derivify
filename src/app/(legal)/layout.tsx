@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import styles from './TermsAndConditions.module.css'; // Importing CSS module for styling
 
 export default function TermsAndConditionsPage() {
     const [date, setDate] = useState('');
