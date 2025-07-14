@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from '@/components/ui/badge';
@@ -16,22 +16,20 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-
-  // This state tracks the current status, providing instant UI feedback
+  
   const [poaStatus, setPoaStatus] = useState(initialPoaStatus);
-  // This state is ONLY for the moment we are talking to our backend
   const [isVerifying, setIsVerifying] = useState(false);
+  const hasRun = useRef(false); // Prevents running the effect multiple times
 
-  // This is the core of the fix. It runs ONCE when the dashboard loads.
   useEffect(() => {
-    // 1. Check if the user was just redirected from Deriv with a 'code'.
     const authCode = searchParams.get('code');
 
-    if (authCode) {
-      setIsVerifying(true); // Show "Verifying..." status immediately
+    // Only run if there is a code AND we haven't already tried to process it.
+    if (authCode && !hasRun.current) {
+      hasRun.current = true; // Mark as "processed" immediately
+      setIsVerifying(true);
       toast({ title: "Finishing connection...", description: "Securely verifying with Deriv. Please wait." });
 
-      // 2. Call our backend API to exchange the code for the real status.
       const exchangeCode = async (code: string) => {
         try {
           const response = await fetch('/api/deriv/exchange-code', {
@@ -43,10 +41,10 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
           const result = await response.json();
 
           if (!response.ok || result.error) {
+            // Throw the specific error message from the server
             throw new Error(result.error || 'The server could not verify your connection.');
           }
           
-          // 3. On success, update the UI instantly and show success toast.
           setPoaStatus(result.status);
           toast({
             title: "Connection Successful!",
@@ -55,9 +53,9 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
           });
 
         } catch (error) {
+          // Display the specific error message in the toast
           toast({ title: "Connection Failed", description: (error as Error).message, variant: "destructive" });
         } finally {
-          // 4. Clean the URL so this doesn't run again on a page refresh.
           router.replace('/dashboard');
           setIsVerifying(false);
         }
@@ -65,26 +63,21 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
 
       exchangeCode(authCode);
     }
-  }, []); // The empty array `[]` is crucial and correct. It means this runs only once on mount.
+  }, [searchParams, router, toast]);
 
-  // The function to start the connection process
   const handleConnect = () => {
-    setIsVerifying(true); // Set loading state immediately on click
+    setIsVerifying(true);
     const appId = '85288';
     const scopes = 'read+trading_information';
     const redirectUri = `${window.location.origin}/dashboard`; 
-
     const derivAuthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    
     window.location.href = derivAuthUrl;
   };
 
   const renderStatus = () => {
-    // Show a loading state BOTH when initially clicking AND when returning from redirect.
     if (isVerifying) {
        return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Verifying...</Badge>;
     }
-    // Render the status based on our local state variable
     switch (poaStatus) {
       case 'verified':
         return <Badge variant="success" className="text-base"><CheckCircle2 className="mr-2 h-4 w-4"/>Verified</Badge>;
@@ -94,12 +87,7 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
         return <Badge variant="destructive" className="text-base"><XCircle className="mr-2 h-4 w-4"/>Rejected</Badge>;
       case 'none':
       default:
-        return (
-          <Button onClick={handleConnect}>
-            <LinkIcon className="mr-2 h-4 w-4" />
-            Connect Deriv Account
-          </Button>
-        );
+        return <Button onClick={handleConnect}><LinkIcon className="mr-2 h-4 w-4" />Connect Deriv Account</Button>;
     }
   };
 
@@ -111,11 +99,7 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
           {renderStatus()}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          Connect your Deriv account to automatically fetch and display your Proof of Address (POA) verification status.
-        </p>
-      </CardContent>
+      <CardContent><p className="text-sm text-muted-foreground">Connect your Deriv account to automatically fetch your Proof of Address (POA) verification status.</p></CardContent>
     </Card>
   );
 }

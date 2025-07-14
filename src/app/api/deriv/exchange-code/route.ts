@@ -9,19 +9,19 @@ import { revalidatePath } from 'next/cache';
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'User is not authenticated.' }, { status: 401 });
   }
-
-  const body = await req.json();
-  const code = body.code;
-
-  if (!code) {
-    return NextResponse.json({ error: 'Authorization code is missing' }, { status: 400 });
-  }
-  
-  const appId = '85288';
 
   try {
+    const body = await req.json();
+    const code = body.code;
+
+    if (!code) {
+      return NextResponse.json({ error: 'Authorization code is missing.' }, { status: 400 });
+    }
+    
+    const appId = '85288';
+
     const tokenResponse = await fetch('https://oauth.deriv.com/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
 
     if (!tokenResponse.ok) {
       const errorBody = await tokenResponse.json();
-      console.error("Deriv token exchange failed:", errorBody);
-      throw new Error('Failed to get Deriv token. Please try connecting again.');
+      console.error("DERIV TOKEN API FAILED:", errorBody);
+      throw new Error(`Deriv authentication failed: ${errorBody.error_description || errorBody.error}`);
     }
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
@@ -60,7 +60,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, status: poaStatus });
 
   } catch (error) {
-    console.error('Deriv exchange-code error:', error);
-    return NextResponse.json({ error: (error as Error).message || 'An internal server error occurred' }, { status: 500 });
+    console.error('EXCHANGE-CODE CRITICAL FAILURE:', error);
+    // Send the actual error message back to the frontend
+    return NextResponse.json({ error: (error as Error).message || 'An unknown internal server error occurred.' }, { status: 500 });
   }
 }
