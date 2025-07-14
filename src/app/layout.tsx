@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider"; // Import the provider
+import { ThemeProvider } from "@/components/theme-provider"; // Import the theme provider
+import { DerivProvider } from '@/path/to/DerivProvider'; // Adjust the path as necessary
 
 export const metadata: Metadata = {
   title: 'Derivify',
@@ -20,7 +21,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Add `suppressHydrationWarning` to <html> as recommended by next-themes
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -28,15 +28,17 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
       <body>
-        {/* Wrap your application with the ThemeProvider */}
+        {/* Wrap your application with the ThemeProvider and DerivProvider */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <DerivProvider>
+            {children}
+            <Toaster />
+          </DerivProvider>
         </ThemeProvider>
       </body>
     </html>
