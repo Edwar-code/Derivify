@@ -1,3 +1,5 @@
+// File Path: src/app/api/deriv/sync-status/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -12,40 +14,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'User is not authenticated.' }, { status: 401 });
   }
 
-  try {
-    const body = await req.json();
-    const code = body.code;
-    if (!code) {
-      return NextResponse.json({ error: 'Authorization code is missing.' }, { status: 400 });
-    }
-    
-    const appId = '85288';
-    const tokenResponse = await fetch('https://oauth.deriv.com/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: appId,
-        code: code,
-      }),
-    });
+  const body = await req.json();
+  const token = body.token;
 
-    if (!tokenResponse.ok) {
-      const errorBody = await tokenResponse.json();
-      console.error("DERIV TOKEN API FAILED:", errorBody);
-      throw new Error(`Deriv authentication failed: ${errorBody.error_description || 'Please try again.'}`);
-    }
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-    
+  if (!token) {
+    return NextResponse.json({ error: 'Deriv token is missing.' }, { status: 400 });
+  }
+
+  const appId = '85288';
+
+  try {
     const connection = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${appId}`);
     const api = new DerivAPIBasic({ connection });
-    await api.authorize(accessToken);
+
+    // Authorize the WebSocket connection with the token we received from the frontend
+    await api.authorize(token);
     const accountStatus = await api.getAccountStatus();
     api.disconnect();
 
     const poaStatus = accountStatus?.authentication?.identity?.status ?? 'none';
     
+    // Save the new status to our database
     const client = await clientPromise;
     const db = client.db();
     await db.collection('users').updateOne(
@@ -53,12 +42,14 @@ export async function POST(req: NextRequest) {
       { $set: { derivPoaStatus: poaStatus } }
     );
 
+    // Invalidate the cache to ensure the UI updates on the next full refresh
     revalidatePath('/dashboard');
 
+    // Send a success response back to the frontend with the new status
     return NextResponse.json({ success: true, status: poaStatus });
 
   } catch (error) {
-    console.error('EXCHANGE-CODE CRITICAL FAILURE:', error);
+    console.error('SYNC-STATUS CRITICAL FAILURE:', error);
     return NextResponse.json({ error: (error as Error).message || 'An unknown internal server error occurred.' }, { status: 500 });
   }
 }

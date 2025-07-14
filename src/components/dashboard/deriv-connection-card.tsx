@@ -18,76 +18,77 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
   const { toast } = useToast();
   
   const [poaStatus, setPoaStatus] = useState(initialPoaStatus);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const effectRan = useRef(false);
 
-  // This ref ensures the effect only runs once, even with strict mode re-renders
-  const effectRan = useRef(false); 
-
+  // This useEffect is the key. It runs when the dashboard loads.
   useEffect(() => {
-    // Check if the effect has already run
-    if (effectRan.current === true) {
-      return;
-    }
+    // Check for the special flag from our new callback page.
+    const shouldSync = searchParams.get('action') === 'sync_status';
 
-    const authCode = searchParams.get('code');
-
-    // If there's a code in the URL, we MUST process it.
-    if (authCode) {
-      effectRan.current = true; // Mark that we are processing this code
-      setIsVerifying(true);
-      toast({ title: "Finishing connection...", description: "Securely verifying with Deriv. Please wait." });
+    if (shouldSync && !effectRan.current) {
+      effectRan.current = true; // Prevents running multiple times
       
-      // Clean the URL immediately to prevent re-running this on a refresh
-      router.replace('/dashboard'); 
-
-      // Define the async function to call our backend
-      const exchangeCode = async (code: string) => {
+      const token = localStorage.getItem('deriv_api_token');
+      if (!token) {
+        toast({ title: "Sync Failed", description: "Could not find Deriv token. Please try connecting again.", variant: "destructive" });
+        return;
+      }
+      
+      setIsSyncing(true);
+      toast({ title: "Syncing Status...", description: "Fetching latest Proof of Address status from Deriv." });
+      
+      const syncStatus = async (apiToken: string) => {
         try {
-          const response = await fetch('/api/deriv/exchange-code', {
+          const response = await fetch('/api/deriv/sync-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
+            body: JSON.stringify({ token: apiToken }),
           });
-          
           const result = await response.json();
 
-          if (!response.ok || result.error) {
-            throw new Error(result.error || 'The server could not complete the connection.');
-          }
+          if (!response.ok) throw new Error(result.error);
           
-          setPoaStatus(result.status); // Update UI with the new status
+          setPoaStatus(result.status);
           toast({
-            title: "Connection Successful!",
-            description: `Your Proof of Address status is now: ${result.status.toUpperCase()}`,
+            title: "Sync Complete!",
+            description: `Your status is now: ${result.status.toUpperCase()}`,
             className: "bg-green-500 text-white",
           });
-
+          
         } catch (error) {
-          toast({ title: "Connection Failed", description: (error as Error).message, variant: "destructive" });
+          toast({ title: "Sync Failed", description: (error as Error).message, variant: "destructive" });
         } finally {
-          setIsVerifying(false); // Stop the loading spinner
+          router.replace('/dashboard'); // Clean the URL
+          setIsSyncing(false);
         }
       };
-
-      // Call the function
-      exchangeCode(authCode);
+      
+      syncStatus(token);
     }
-  }, [searchParams, router, toast]); // Dependencies are correct
+  }, [searchParams, router, toast]);
 
   const handleConnect = () => {
-    setIsVerifying(true);
     const appId = '85288';
     const scopes = 'read+trading_information';
-    // This MUST match the redirect URL in your Deriv App settings exactly.
-    const redirectUri = `${window.location.origin}/dashboard`; 
+    // This MUST now point to our new callback page.
+    const redirectUri = `${window.location.origin}/auth/callback`; 
     const derivAuthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     window.location.href = derivAuthUrl;
   };
 
   const renderStatus = () => {
-    if (isVerifying) {
-       return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Verifying...</Badge>;
+    if (isSyncing) {
+       return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Syncing...</Badge>;
     }
+    // Check for a token in localStorage to decide if we are "connected".
+    const isConnected = typeof window !== 'undefined' && !!localStorage.getItem('deriv_api_token');
+
+    if (!isConnected) {
+      return <Button onClick={handleConnect}><LinkIcon className="mr-2 h-4 w-4" />Connect Deriv Account</Button>;
+    }
+    
+    // If connected, show the status from the database.
     switch (poaStatus) {
       case 'verified':
         return <Badge variant="success" className="text-base"><CheckCircle2 className="mr-2 h-4 w-4"/>Verified</Badge>;
@@ -95,9 +96,8 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
         return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Pending</Badge>;
       case 'rejected':
         return <Badge variant="destructive" className="text-base"><XCircle className="mr-2 h-4 w-4"/>Rejected</Badge>;
-      case 'none':
       default:
-        return <Button onClick={handleConnect}><LinkIcon className="mr-2 h-4 w-4" />Connect Deriv Account</Button>;
+         return <Badge variant="outline">Unknown Status</Badge>;
     }
   };
 
