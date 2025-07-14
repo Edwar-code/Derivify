@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from '@/components/ui/badge';
@@ -18,13 +18,16 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
   const { toast } = useToast();
   
   const [isSyncing, setIsSyncing] = useState(false);
+  const effectRan = useRef(false);
 
-  // This hook now only does one thing: trigger the backend sync.
   useEffect(() => {
+    if (effectRan.current) return;
+
     const shouldSync = searchParams.get('action') === 'sync_status';
     const token = localStorage.getItem('deriv_api_token');
 
     if (shouldSync && token) {
+      effectRan.current = true;
       setIsSyncing(true);
       toast({ title: "Syncing Status...", description: "Fetching latest Proof of Address status from Deriv." });
       
@@ -38,23 +41,26 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
           const result = await response.json();
           if (!response.ok) throw new Error(result.error);
 
-          // On success, we simply reload the page.
-          // Because the revalidatePath() function ran on the server,
-          // this reload is guaranteed to fetch the new, updated page.
+          // The page will be reloaded with fresh data from the server
+          // because we used `revalidatePath` in the API.
+          toast({
+            title: "Sync Complete!",
+            description: `Your status is now: ${result.status.toUpperCase()}`,
+            className: "bg-green-500 text-white",
+          });
           window.location.href = '/dashboard'; 
           
         } catch (error) {
           toast({ title: "Sync Failed", description: (error as Error).message, variant: "destructive" });
           setIsSyncing(false);
-          router.replace('/dashboard'); // Clean URL on failure too
+          router.replace('/dashboard');
         }
       };
       
       syncStatus(token);
-      // Remove the token after using it for sync to enforce reconnecting for fresh data if needed.
       localStorage.removeItem('deriv_api_token');
     }
-  }, []); // Run only once
+  }, [searchParams, router, toast]);
 
   const handleConnect = () => {
     const appId = '85288';
@@ -83,8 +89,17 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
 
   return (
     <Card className="border-border bg-card shadow-md">
-      <CardHeader><CardTitle className="flex items-center justify-between"><span>Proof of Address Status</span>{renderStatus()}</CardTitle></CardHeader>
-      <CardContent><p className="text-sm text-muted-foreground">Connect your Deriv account to fetch your Proof of Address (POA) status.</p></CardContent>
-    </d>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+            <span>Proof of Address Status</span>
+            {renderStatus()}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+            Connect your Deriv account to fetch your Proof of Address (POA) status.
+        </p>
+      </CardContent>
+    </Card> 
   );
 }
