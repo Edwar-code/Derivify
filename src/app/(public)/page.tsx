@@ -129,21 +129,26 @@ export default function PublicPage() {
           </div>
         </div>
       </section>
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-card border-t border-b">
-    <div className="container px-4 md:px-6 text-center">
-        <h2 className="text-2xl font-bold text-foreground">Important Links</h2>
-        <div className="flex flex-col space-y-2 mt-4">
+
+      {/* --- FOOTER SECTION --- */}
+      <footer className="bg-card border-t border-muted-foreground py-6">
+        <div className="container mx-auto text-center">
+          <div className="flex justify-center space-x-6">
             <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
+              Privacy Policy
             </Link>
             <Link href="/terms" className="text-primary hover:underline">
-                Terms and Conditions
+              Terms and Conditions
             </Link>
+            <Link href="/contact" className="text-primary hover:underline">
+              Contact Us
+            </Link>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            &copy; {new Date().getFullYear()} Your Company Name. All rights reserved.
+          </p>
         </div>
-  
-
-        </div>
-      </section>
+      </footer>
     </div>
   );
 }
