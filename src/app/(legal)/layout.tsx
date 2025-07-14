@@ -1,35 +1,36 @@
-import { ShieldCheck } from "lucide-react";
-import Link from "next/link";
+'use client';
 
-export default function LegalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex min-h-screen flex-col">
-       <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-50">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-lg font-semibold md:text-base text-primary"
-          >
-            <ShieldCheck className="h-6 w-6" />
-            <span className="font-bold">Derivify</span>
-          </Link>
-       </header>
-       <main className="flex-1">
-        <div className="container mx-auto max-w-4xl py-12">
-            <div className="prose dark:prose-invert">
-                 {children}
-            </div>
+import { useState, useEffect } from 'react';
+
+export default function TermsAndConditionsPage() {
+    const [date, setDate] = useState('');
+
+    useEffect(() => {
+        setDate(new Date().toLocaleDateString());
+    }, []);
+
+    return (
+        <div>
+            <h1>Terms and Conditions</h1>
+            <p>Last updated: {date || '...'}</p>
+
+            <h2>Introduction</h2>
+            <p>Welcome to Derivify. By accessing our services, you agree to comply with these Terms and Conditions.</p>
+
+            <h2>Use of Our Services</h2>
+            <p>You must be at least 18 years old to use our services...</p>
+
+            <h2>User Responsibilities</h2>
+            <p>You are responsible for maintaining the confidentiality of your account information...</p>
+
+            <h2>Limitation of Liability</h2>
+            <p>Derivify shall not be liable for any indirect, incidental, or consequential damages...</p>
+
+            <h2>Changes to Terms</h2>
+            <p>We may update these Terms from time to time...</p>
+
+            <h2>Contact Us</h2>
+            <p>If you have any questions about these Terms and Conditions, please contact us at: support@derivify.example.com</p>
         </div>
-       </main>
-       <footer className="border-t">
-        <div className="container mx-auto py-6 text-center text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Derivify. All rights reserved.</p>
-            <p><Link href="/dashboard" className="underline">Back to App</Link></p>
-        </div>
-       </footer>
-    </div>
-  );
+    );
 }

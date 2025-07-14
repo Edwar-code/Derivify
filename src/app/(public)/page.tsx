@@ -79,7 +79,7 @@ export default function PublicPage() {
             {features.map((feature, index) => (
               <div key={index} className="grid gap-4 text-center">
                 <div className="flex justify-center items-center">
-                    {feature.icon}
+                  {feature.icon}
                 </div>
                 <h3 className="text-xl font-bold text-foreground">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
@@ -89,8 +89,8 @@ export default function PublicPage() {
         </div>
       </section>
 
-       {/* --- DOCUMENTS SECTION --- */}
-       <section className="w-full py-12 md:py-24 lg:py-32 bg-card border-t border-b">
+      {/* --- DOCUMENTS SECTION --- */}
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-card border-t border-b">
         <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
           <div className="space-y-3">
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight text-foreground">
@@ -101,20 +101,20 @@ export default function PublicPage() {
             </p>
           </div>
           <div className="mx-auto w-full max-w-sm space-y-2">
-             <div className="grid grid-cols-2 gap-4">
-                {documents.map((doc, index) => (
-                    <div key={index} className="flex items-center gap-2 p-4 rounded-lg border bg-background">
-                        {doc.icon}
-                        <span className="font-medium text-foreground">{doc.name}</span>
-                    </div>
-                ))}
+            <div className="grid grid-cols-2 gap-4">
+              {documents.map((doc, index) => (
+                <div key={index} className="flex items-center gap-2 p-4 rounded-lg border bg-background">
+                  {doc.icon}
+                  <span className="font-medium text-foreground">{doc.name}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
-      
-       {/* --- CTA SECTION --- */}
-       <section className="w-full py-12 md:py-24 lg:py-32">
+
+      {/* --- CTA SECTION --- */}
+      <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
@@ -128,7 +128,22 @@ export default function PublicPage() {
             </Button>
           </div>
         </div>
-       </section>
+      </section>
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-card border-t border-b">
+    <div className="container px-4 md:px-6 text-center">
+        <h2 className="text-2xl font-bold text-foreground">Important Links</h2>
+        <div className="flex flex-col space-y-2 mt-4">
+            <Link href="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+            </Link>
+            <Link href="/terms" className="text-primary hover:underline">
+                Terms and Conditions
+            </Link>
+        </div>
+  
+
+        </div>
+      </section>
     </div>
   );
 }
