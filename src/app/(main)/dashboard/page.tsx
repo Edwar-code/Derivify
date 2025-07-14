@@ -12,13 +12,16 @@ import { WithdrawalModal } from "@/components/wallet/withdrawal-modal";
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
+
+
 import { ObjectId } from "mongodb";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { ReferralCard } from "@/components/dashboard/referral-card";
 import { DerivConnectionCard } from "@/components/dashboard/deriv-connection-card";
 import { BonusClaimCard } from "@/components/dashboard/bonus-claim-card";
-import PublicHeader from "@/components/PublicHeader"; // Import PublicHeader
+import PublicHeader from '@/components/PublicHeader';
+
 
 const documents = [
     { id: "doc-1", name: "KRA Returns Document", description: "Official KRA document.", price: 150, icon: <FileText className="w-6 h-6 text-primary" /> },
