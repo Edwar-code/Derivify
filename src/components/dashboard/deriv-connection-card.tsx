@@ -9,7 +9,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 interface DerivConnectionCardProps {
-  initialPoaStatus: 'none' | 'pendiing' | 'verified' | 'rejected';
+  initialPoaStatus: 'none' | 'pending' | 'verified' | 'rejected';
 }
 
 export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardProps) {
