@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PaymentModal } from "@/components/payment/payment-modal";
-import { FileText, Building, FileUp, Banknote, Wallet, ShieldCheck } from 'lucide-react';
+import { FileText, Building, FileUp, Banknote, Wallet, ShieldCheck, Bell } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { WithdrawalModal } from "@/components/wallet/withdrawal-modal";
 import { getServerSession } from "next-auth/next";
@@ -15,7 +15,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
-
+import { Header } from "@/components/dashboard/header"; // Assuming you have a Header component
 import { ReferralCard } from "@/components/dashboard/referral-card";
 import { DerivConnectionCard } from "@/components/dashboard/deriv-connection-card";
 import { BonusClaimCard } from "@/components/dashboard/bonus-claim-card";
@@ -48,11 +48,24 @@ export default async function DashboardPage() {
   const derivPoaStatus = user.derivPoaStatus ?? 'none';
   
   const claimableBonus = user.referralBonuses
-    ?.filter((b: any) => b.status === 'unclaimed')
-    .reduce((sum: number, b: any) => sum + b.amount, 0) ?? 0;
+    ?.filter((b) => b.status === 'unclaimed')
+    .reduce((sum, b) => sum + b.amount, 0) ?? 0;
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8 p-4 sm:p-8">
+      {/* Header with Title and Notification Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Your Logo Here */}
+          <img src="/logo.png" alt="Derivify Logo" className="h-8 w-auto" />
+          <h1 className="text-2xl font-bold text-foreground">Derivify</h1>
+        </div>
+        <Button variant="outline" size="icon">
+          <Bell className="h-5 w-5" />
+          <span className="sr-only">Notifications</span>
+        </Button>
+      </div>
+
       {isAdmin && (
         <Card className="border-primary bg-primary/10">
             <CardHeader>
@@ -67,7 +80,8 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Responsive Grid for Main Content */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
         <BonusClaimCard amount={claimableBonus} />
         <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Wallet/> Wallet Balance</CardTitle></CardHeader>
@@ -86,12 +100,13 @@ export default async function DashboardPage() {
             <CardTitle>Get Your Proof of Address Documents</CardTitle>
             <CardDescription>Select a document to purchase. Payments are securely handled.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Responsive Grid for Documents */}
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {documents.map((doc) => (
-                  <div key={doc.id} className="flex flex-col items-center text-center gap-4 p-4 rounded-lg border bg-background">
+                  <div key={doc.id} className="flex flex-col items-center text-center gap-4 p-4 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
                       <div className="text-primary">{doc.icon}</div>
                       <h3 className="font-semibold">{doc.name}</h3>
-                      <p className="text-xs text-muted-foreground">{doc.description}</p>
+                      <p className="text-sm text-muted-foreground">{doc.description}</p>
                       <PaymentModal document={doc} userId={user._id.toString()} userEmail={user.email} userName={user.name} usedReferralCode={user.usedReferralCode} />
                   </div>
               ))}
