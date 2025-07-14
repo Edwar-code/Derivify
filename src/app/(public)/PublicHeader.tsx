@@ -27,12 +27,7 @@ export default function PublicHeader() {
           </>
         ) : session?.user ? (
           <>
-            <Button asChild variant="ghost">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
-            <Button onClick={() => signOut({ callbackUrl: '/' })}>
-              Log Out
-            </Button>
+        
           </>
         ) : (
           <>

@@ -97,7 +97,7 @@ export default async function DashboardPage() {
                       key={doc.id} 
                       className="flex flex-col items-center text-center gap-4 p-4 rounded-lg border bg-background"
                       style={{
-                          backgroundImage: `url('/${doc.id}${doc.id === "doc-1" ? ".jpg" : ".jpeg"}')`,
+                          backgroundImage: `url('/${doc.id}${doc.id === "doc-4" ? ".jpg" : ".jpg"}')`,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           height: '200px',
