@@ -15,13 +15,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const code = body.code;
-
     if (!code) {
       return NextResponse.json({ error: 'Authorization code is missing.' }, { status: 400 });
     }
     
     const appId = '85288';
-
     const tokenResponse = await fetch('https://oauth.deriv.com/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -35,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!tokenResponse.ok) {
       const errorBody = await tokenResponse.json();
       console.error("DERIV TOKEN API FAILED:", errorBody);
-      throw new Error(`Deriv authentication failed: ${errorBody.error_description || errorBody.error}`);
+      throw new Error(`Deriv authentication failed: ${errorBody.error_description || 'Please try again.'}`);
     }
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
@@ -61,7 +59,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('EXCHANGE-CODE CRITICAL FAILURE:', error);
-    // Send the actual error message back to the frontend
     return NextResponse.json({ error: (error as Error).message || 'An unknown internal server error occurred.' }, { status: 500 });
   }
 }

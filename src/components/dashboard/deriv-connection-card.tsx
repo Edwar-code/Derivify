@@ -19,17 +19,28 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
   
   const [poaStatus, setPoaStatus] = useState(initialPoaStatus);
   const [isVerifying, setIsVerifying] = useState(false);
-  const hasRun = useRef(false); // Prevents running the effect multiple times
+
+  // This ref ensures the effect only runs once, even with strict mode re-renders
+  const effectRan = useRef(false); 
 
   useEffect(() => {
+    // Check if the effect has already run
+    if (effectRan.current === true) {
+      return;
+    }
+
     const authCode = searchParams.get('code');
 
-    // Only run if there is a code AND we haven't already tried to process it.
-    if (authCode && !hasRun.current) {
-      hasRun.current = true; // Mark as "processed" immediately
+    // If there's a code in the URL, we MUST process it.
+    if (authCode) {
+      effectRan.current = true; // Mark that we are processing this code
       setIsVerifying(true);
       toast({ title: "Finishing connection...", description: "Securely verifying with Deriv. Please wait." });
+      
+      // Clean the URL immediately to prevent re-running this on a refresh
+      router.replace('/dashboard'); 
 
+      // Define the async function to call our backend
       const exchangeCode = async (code: string) => {
         try {
           const response = await fetch('/api/deriv/exchange-code', {
@@ -41,34 +52,33 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
           const result = await response.json();
 
           if (!response.ok || result.error) {
-            // Throw the specific error message from the server
-            throw new Error(result.error || 'The server could not verify your connection.');
+            throw new Error(result.error || 'The server could not complete the connection.');
           }
           
-          setPoaStatus(result.status);
+          setPoaStatus(result.status); // Update UI with the new status
           toast({
             title: "Connection Successful!",
-            description: "Your Proof of Address status has been updated.",
+            description: `Your Proof of Address status is now: ${result.status.toUpperCase()}`,
             className: "bg-green-500 text-white",
           });
 
         } catch (error) {
-          // Display the specific error message in the toast
           toast({ title: "Connection Failed", description: (error as Error).message, variant: "destructive" });
         } finally {
-          router.replace('/dashboard');
-          setIsVerifying(false);
+          setIsVerifying(false); // Stop the loading spinner
         }
       };
 
+      // Call the function
       exchangeCode(authCode);
     }
-  }, [searchParams, router, toast]);
+  }, [searchParams, router, toast]); // Dependencies are correct
 
   const handleConnect = () => {
     setIsVerifying(true);
     const appId = '85288';
     const scopes = 'read+trading_information';
+    // This MUST match the redirect URL in your Deriv App settings exactly.
     const redirectUri = `${window.location.origin}/dashboard`; 
     const derivAuthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     window.location.href = derivAuthUrl;
@@ -93,12 +103,7 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
 
   return (
     <Card className="border-border bg-card shadow-md">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Proof of Address Status</span>
-          {renderStatus()}
-        </CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="flex items-center justify-between"><span>Proof of Address Status</span>{renderStatus()}</CardTitle></CardHeader>
       <CardContent><p className="text-sm text-muted-foreground">Connect your Deriv account to automatically fetch your Proof of Address (POA) verification status.</p></CardContent>
     </Card>
   );
