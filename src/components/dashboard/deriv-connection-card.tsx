@@ -13,79 +13,79 @@ interface DerivConnectionCardProps {
 }
 
 export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardProps) {
-  // We use local state to provide an instant UI update without a full page reload.
-  const [status, setStatus] = useState(initialPoaStatus);
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  // This useEffect hook is the key to the new flow.
+  // This state tracks the current status, providing instant UI feedback
+  const [poaStatus, setPoaStatus] = useState(initialPoaStatus);
+  // This state is ONLY for the moment we are talking to our backend
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // This is the core of the fix. It runs ONCE when the dashboard loads.
   useEffect(() => {
-    // 1. Check if the user has been redirected back from Deriv with a code.
-    const code = searchParams.get('code');
+    // 1. Check if the user was just redirected from Deriv with a 'code'.
+    const authCode = searchParams.get('code');
 
-    if (code) {
-      setIsLoading(true);
-      toast({ title: "Finishing connection...", description: "Verifying with Deriv, please wait." });
+    if (authCode) {
+      setIsVerifying(true); // Show "Verifying..." status immediately
+      toast({ title: "Finishing connection...", description: "Securely verifying with Deriv. Please wait." });
 
-      // 2. Define an async function to send the code to our new backend API.
-      const exchangeCodeForStatus = async (authCode: string) => {
+      // 2. Call our backend API to exchange the code for the real status.
+      const exchangeCode = async (code: string) => {
         try {
           const response = await fetch('/api/deriv/exchange-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: authCode }),
+            body: JSON.stringify({ code }),
           });
-
-          if (!response.ok) {
-            throw new Error('Server failed to exchange the code.');
-          }
           
           const result = await response.json();
-          if (result.success) {
-            // 3. On success, update the UI instantly and show a success message.
-            setStatus(result.status);
-            toast({
-              title: "Connection Successful!",
-              description: "Your Proof of Address status has been updated.",
-              className: "bg-green-500 text-white",
-            });
-          } else {
-            throw new Error(result.error || 'An unknown error occurred.');
+
+          if (!response.ok || result.error) {
+            throw new Error(result.error || 'The server could not verify your connection.');
           }
+          
+          // 3. On success, update the UI instantly and show success toast.
+          setPoaStatus(result.status);
+          toast({
+            title: "Connection Successful!",
+            description: "Your Proof of Address status has been updated.",
+            className: "bg-green-500 text-white",
+          });
 
         } catch (error) {
           toast({ title: "Connection Failed", description: (error as Error).message, variant: "destructive" });
         } finally {
-          // 4. Clean the URL by removing the 'code' parameter, so this doesn't run again on refresh.
+          // 4. Clean the URL so this doesn't run again on a page refresh.
           router.replace('/dashboard');
-          setIsLoading(false);
+          setIsVerifying(false);
         }
       };
 
-      exchangeCodeForStatus(code);
+      exchangeCode(authCode);
     }
-  }, []); // This empty dependency array means the effect runs only once when the page loads.
+  }, []); // The empty array `[]` is crucial and correct. It means this runs only once on mount.
 
+  // The function to start the connection process
   const handleConnect = () => {
-    setIsLoading(true);
+    setIsVerifying(true); // Set loading state immediately on click
     const appId = '85288';
     const scopes = 'read+trading_information';
-    // This MUST match exactly what you have set in your Deriv App dashboard.
     const redirectUri = `${window.location.origin}/dashboard`; 
 
     const derivAuthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
-    // Send the user to Deriv to authorize.
     window.location.href = derivAuthUrl;
   };
 
   const renderStatus = () => {
-    if (isLoading) {
+    // Show a loading state BOTH when initially clicking AND when returning from redirect.
+    if (isVerifying) {
        return <Badge variant="secondary" className="text-base"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Verifying...</Badge>;
     }
-    switch (status) {
+    // Render the status based on our local state variable
+    switch (poaStatus) {
       case 'verified':
         return <Badge variant="success" className="text-base"><CheckCircle2 className="mr-2 h-4 w-4"/>Verified</Badge>;
       case 'pending':
@@ -95,7 +95,7 @@ export function DerivConnectionCard({ initialPoaStatus }: DerivConnectionCardPro
       case 'none':
       default:
         return (
-          <Button onClick={handleConnect} disabled={isLoading}>
+          <Button onClick={handleConnect}>
             <LinkIcon className="mr-2 h-4 w-4" />
             Connect Deriv Account
           </Button>
